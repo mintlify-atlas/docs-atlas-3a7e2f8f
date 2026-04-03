@@ -1,0 +1,492 @@
+---
+title: "MainAPI reference"
+description: "Complete reference for the MainAPI abstract class, the foundation of every CloudStream extension."
+---
+
+Every CloudStream extension is a class that extends `MainAPI`. You override its properties and methods to tell CloudStream what your provider supports and how to fetch content from it.
+
+```kotlin minimal provider skeleton
+class MyProvider : MainAPI() {
+    override var name = "My Provider"
+    override var mainUrl = "https://myprovider.com"
+    override var lang = "en"
+    override val hasMainPage = true
+    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+}
+```
+
+---
+
+## Provider identity
+
+<ParamField path="name" type="String" required>
+  The display name of your provider. This appears throughout the CloudStream UI — in source lists, on result pages, and in the player. Must be unique across all installed extensions.
+
+  ```kotlin
+  override var name = "My Provider"
+  ```
+</ParamField>
+
+<ParamField path="mainUrl" type="String" required>
+  The base URL of the provider site. Used internally by `fixUrl()` to resolve relative paths. Users can override this value via the "Clone site" feature in settings.
+
+  ```kotlin
+  override var mainUrl = "https://myprovider.com"
+  ```
+</ParamField>
+
+<ParamField path="lang" type="String" default="en">
+  The primary language of this provider as an [IETF BCP 47](https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry) language tag (e.g. `"en"`, `"fr"`, `"ja"`, `"zh"`). Users can filter sources by language. Use `"universal"` if the provider serves content in all languages.
+
+  ```kotlin
+  override var lang = "ja"
+  ```
+</ParamField>
+
+<ParamField path="vpnStatus" type="VPNStatus" default="VPNStatus.None">
+  A hint to the user about whether a VPN may be required to access this provider.
+
+  | Value | Meaning |
+  |---|---|
+  | `VPNStatus.None` | No VPN needed |
+  | `VPNStatus.MightBeNeeded` | Provider may be geo-blocked in some regions |
+  | `VPNStatus.Torrent` | Provider serves torrent content |
+
+  ```kotlin
+  override val vpnStatus = VPNStatus.MightBeNeeded
+  ```
+</ParamField>
+
+<ParamField path="providerType" type="ProviderType" default="ProviderType.DirectProvider">
+  Describes how this provider sources its data.
+
+  | Value | Meaning |
+  |---|---|
+  | `ProviderType.DirectProvider` | Content data comes directly from the site |
+  | `ProviderType.MetaProvider` | Data is aggregated from a third-party metadata service (e.g. IMDb, MAL) |
+
+  ```kotlin
+  override val providerType = ProviderType.DirectProvider
+  ```
+</ParamField>
+
+---
+
+## Feature flags
+
+<ParamField path="hasMainPage" type="Boolean" default="false">
+  Set to `true` if your provider implements `getMainPage()`. CloudStream will display the homepage sections for this provider when enabled.
+
+  ```kotlin
+  override val hasMainPage = true
+  ```
+</ParamField>
+
+<ParamField path="hasQuickSearch" type="Boolean" default="false">
+  Set to `true` if your provider implements `quickSearch()`. Quick search is a lightweight, lower-latency search shown as the user types, before the full search is triggered.
+
+  ```kotlin
+  override val hasQuickSearch = true
+  ```
+</ParamField>
+
+<ParamField path="instantLinkLoading" type="Boolean" default="false">
+  Set to `true` when the link data is embedded directly in the `dataUrl` string returned by `load()`, so no additional network request is needed in `loadLinks()`. This is unusual — most providers set this to `false`.
+
+  ```kotlin
+  override val instantLinkLoading = false
+  ```
+</ParamField>
+
+<ParamField path="hasChromecastSupport" type="Boolean" default="true">
+  Set to `false` if your provider's links cannot be cast to Chromecast (e.g. they require special authentication headers or a cookie session that only works in-app).
+
+  ```kotlin
+  override val hasChromecastSupport = true
+  ```
+</ParamField>
+
+<ParamField path="hasDownloadSupport" type="Boolean" default="true">
+  Set to `false` if your provider's links are encrypted or otherwise cannot be downloaded.
+
+  ```kotlin
+  override val hasDownloadSupport = true
+  ```
+</ParamField>
+
+<ParamField path="usesWebView" type="Boolean" default="false">
+  Set to `true` if your provider requires a `WebView` to bypass Cloudflare or similar bot-detection challenges. When `true`, the app will check for WebView availability before loading this provider.
+
+  ```kotlin
+  override val usesWebView = true
+  ```
+</ParamField>
+
+---
+
+## Content types
+
+<ParamField path="supportedTypes" type="Set&lt;TvType&gt;">
+  The set of content types this provider handles. CloudStream uses this to filter results and route content correctly.
+
+  ```kotlin
+  override val supportedTypes = setOf(
+      TvType.Movie,
+      TvType.TvSeries,
+      TvType.Anime,
+  )
+  ```
+
+  **All `TvType` values:**
+
+  | Value | Description |
+  |---|---|
+  | `TvType.Movie` | Standard movies |
+  | `TvType.AnimeMovie` | Animated feature films |
+  | `TvType.TvSeries` | Live-action episodic series |
+  | `TvType.Cartoon` | Animated episodic series |
+  | `TvType.Anime` | Japanese anime series |
+  | `TvType.OVA` | Original video animations |
+  | `TvType.Torrent` | Torrent-based content |
+  | `TvType.Documentary` | Documentaries |
+  | `TvType.AsianDrama` | Korean, Chinese, and other Asian dramas |
+  | `TvType.Live` | Live streams |
+  | `TvType.NSFW` | Adult content |
+  | `TvType.Others` | Uncategorised content |
+  | `TvType.Music` | Music videos |
+  | `TvType.AudioBook` | Audio books |
+  | `TvType.Audio` | Audio content |
+  | `TvType.Podcast` | Podcasts |
+  | `TvType.CustomMedia` | Custom media — the built-in player is not used; you handle playback yourself |
+</ParamField>
+
+---
+
+## Homepage
+
+<ParamField path="mainPage" type="List&lt;MainPageData&gt;">
+  Defines the named sections that appear on your provider's homepage. Each entry maps a URL (used as the `data` field in `MainPageRequest`) to a human-readable section name.
+
+  Use the `mainPageOf()` helper to define sections concisely:
+
+  ```kotlin
+  override val mainPage = mainPageOf(
+      "$mainUrl/movies/trending" to "Trending movies",
+      "$mainUrl/series/new" to "New series",
+      "$mainUrl/anime/popular" to "Popular anime",
+  )
+  ```
+
+  You can also pass `horizontalImages = true` for a section to display cards in landscape orientation:
+
+  ```kotlin
+  override val mainPage = mainPageOf(
+      mainPage("$mainUrl/featured", "Featured", horizontalImages = true),
+      mainPage("$mainUrl/movies", "Movies"),
+  )
+  ```
+</ParamField>
+
+<ParamField path="sequentialMainPage" type="Boolean" default="false">
+  When `true`, homepage sections are loaded one after another instead of in parallel. Use this for providers that rate-limit concurrent requests.
+
+  ```kotlin
+  override var sequentialMainPage = true
+  override var sequentialMainPageDelay = 500L      // ms between sections on first load
+  override var sequentialMainPageScrollDelay = 200L // ms between sections when paginating
+  ```
+</ParamField>
+
+---
+
+## Methods
+
+### `getMainPage`
+
+```kotlin
+open suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse?
+```
+
+Called to populate a homepage section. The `page` parameter starts at `1` and increments each time the user scrolls to load more. The `request` parameter carries the section name and URL you defined in `mainPage`.
+
+<ParamField path="page" type="Int">
+  The page number, starting from `1`.
+</ParamField>
+
+<ParamField path="request" type="MainPageRequest">
+  Contains the section being loaded.
+
+  - `request.name` — the section's display name (e.g. `"Trending movies"`)
+  - `request.data` — the URL string you supplied in `mainPageOf()` (e.g. `"https://myprovider.com/movies/trending"`)
+  - `request.horizontalImages` — whether to display items in landscape card layout
+</ParamField>
+
+```kotlin example
+override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+    val doc = app.get("${request.data}?page=$page").document
+    val items = doc.select(".item").mapNotNull { el ->
+        newMovieSearchResponse(
+            name = el.selectFirst(".title")!!.text(),
+            url = el.selectFirst("a")!!.attr("href"),
+            type = TvType.Movie,
+        ) {
+            posterUrl = el.selectFirst("img")?.attr("src")
+        }
+    }
+    return newHomePageResponse(request, items, hasNext = items.isNotEmpty())
+}
+```
+
+---
+
+### `search`
+
+```kotlin
+open suspend fun search(query: String): List<SearchResponse>?
+open suspend fun search(query: String, page: Int): SearchResponseList?
+```
+
+Called when the user submits a search query. Override the single-argument version for basic search, or the two-argument version to support pagination.
+
+<ParamField path="query" type="String">
+  The user's search query string.
+</ParamField>
+
+<ParamField path="page" type="Int">
+  The page number for paginated search, starting from `1`. The default implementation wraps the non-paginated `search(query)` result and returns `hasNext = false`.
+</ParamField>
+
+```kotlin basic search
+override suspend fun search(query: String): List<SearchResponse>? {
+    val doc = app.get("$mainUrl/search?q=$query").document
+    return doc.select(".result").mapNotNull { el ->
+        newTvSeriesSearchResponse(
+            name = el.text(),
+            url = el.attr("href"),
+            type = TvType.TvSeries,
+        )
+    }
+}
+```
+
+```kotlin paginated search
+override suspend fun search(query: String, page: Int): SearchResponseList? {
+    val doc = app.get("$mainUrl/search?q=$query&page=$page").document
+    val items = doc.select(".result").mapNotNull { /* parse */ }
+    val hasNext = doc.selectFirst(".next-page") != null
+    return newSearchResponseList(items, hasNext)
+}
+```
+
+---
+
+### `quickSearch`
+
+```kotlin
+open suspend fun quickSearch(query: String): List<SearchResponse>?
+```
+
+An optional lighter-weight search shown as the user types. Only called when `hasQuickSearch = true`. Return results quickly — this is meant to be a fast autocomplete, not a full search.
+
+<ParamField path="query" type="String">
+  The partial query string typed by the user.
+</ParamField>
+
+```kotlin
+override suspend fun quickSearch(query: String): List<SearchResponse>? {
+    val json = app.get("$mainUrl/api/suggest?q=$query").parsedSafe<SuggestResponse>()
+    return json?.results?.map { newMovieSearchResponse(it.title, it.url, TvType.Movie) }
+}
+```
+
+---
+
+### `load`
+
+```kotlin
+open suspend fun load(url: String): LoadResponse?
+```
+
+Called when the user taps on a search result or homepage card. Given the item's URL, return a `LoadResponse` that describes the full detail page — title, plot, episode list, actors, etc.
+
+<ParamField path="url" type="String">
+  The URL of the content page, as returned in the `url` field of a `SearchResponse`.
+</ParamField>
+
+```kotlin
+override suspend fun load(url: String): LoadResponse? {
+    val doc = app.get(url).document
+    val title = doc.selectFirst("h1.title")!!.text()
+    val plot = doc.selectFirst(".description")?.text()
+    val poster = doc.selectFirst("img.poster")?.attr("src")
+
+    return newMovieLoadResponse(title, url, TvType.Movie, url) {
+        this.plot = plot
+        this.posterUrl = fixUrlNull(poster)
+    }
+}
+```
+
+See [Load responses](/devs/load-response) for all return types.
+
+---
+
+### `loadLinks`
+
+```kotlin
+open suspend fun loadLinks(
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean
+```
+
+Called when the user is ready to play content. Given the `data` string from a `LoadResponse`, find and report all available video links and subtitles via the callbacks. Returns `true` on success.
+
+<ParamField path="data" type="String">
+  The `dataUrl` string from your `LoadResponse`, or the serialised `Episode.data` string for episode-based content.
+</ParamField>
+
+<ParamField path="isCasting" type="Boolean">
+  `true` when the user is casting to Chromecast. Some providers serve different links for casting.
+</ParamField>
+
+<ParamField path="subtitleCallback" type="(SubtitleFile) -> Unit">
+  Call this for each subtitle track you find. Pass a `SubtitleFile` with a language label and a URL to the subtitle file.
+</ParamField>
+
+<ParamField path="callback" type="(ExtractorLink) -> Unit">
+  Call this for each playable video link you find. See [Extractors](/devs/extractors) for how to produce `ExtractorLink` values.
+</ParamField>
+
+```kotlin example using loadExtractor
+override suspend fun loadLinks(
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean {
+    val doc = app.get(data).document
+    doc.select("iframe[src]").forEach { iframe ->
+        loadExtractor(iframe.attr("src"), data, subtitleCallback, callback)
+    }
+    return true
+}
+```
+
+See [Extractors](/devs/extractors) for more detail on `loadExtractor` and building custom extractors.
+
+---
+
+### `getLoadUrl`
+
+```kotlin
+open suspend fun getLoadUrl(name: SyncIdName, id: String): String?
+```
+
+Optional. Converts a sync service ID (IMDb, MAL, etc.) into a URL that can be passed to `load()`. Only implement this if you declare supported sync names in `supportedSyncNames`.
+
+<ParamField path="name" type="SyncIdName">
+  The sync service identifier (e.g. `SyncIdName.Imdb`).
+</ParamField>
+
+<ParamField path="id" type="String">
+  The ID string within that service (e.g. `"tt0133093"` for IMDb).
+</ParamField>
+
+```kotlin
+override val supportedSyncNames = setOf(SyncIdName.Imdb)
+
+override suspend fun getLoadUrl(name: SyncIdName, id: String): String? {
+    if (name == SyncIdName.Imdb) {
+        return "$mainUrl/imdb/$id"
+    }
+    return null
+}
+```
+
+---
+
+### `getVideoInterceptor`
+
+```kotlin
+open fun getVideoInterceptor(extractorLink: ExtractorLink): Interceptor?
+```
+
+Optional. Return an OkHttp `Interceptor` that will be attached to the `OkHttpDataSource` when ExoPlayer streams the given link. Useful for providers that need to modify or sign outgoing requests at the HTTP level.
+
+<ParamField path="extractorLink" type="ExtractorLink">
+  The link about to be played.
+</ParamField>
+
+```kotlin
+override fun getVideoInterceptor(extractorLink: ExtractorLink): Interceptor? {
+    return Interceptor { chain ->
+        val request = chain.request().newBuilder()
+            .addHeader("X-Custom-Token", "secret")
+            .build()
+        chain.proceed(request)
+    }
+}
+```
+
+---
+
+## Helper functions
+
+### `fixUrl` and `fixUrlNull`
+
+```kotlin
+fun MainAPI.fixUrl(url: String): String
+fun MainAPI.fixUrlNull(url: String?): String?
+```
+
+Resolve a potentially relative URL against `mainUrl`. Handles protocol-relative URLs (`//example.com/path`) and root-relative paths (`/path`). `fixUrlNull` returns `null` when given a blank or null input instead of an empty string.
+
+```kotlin
+val absoluteUrl = fixUrl("/movies/123")      // → "https://myprovider.com/movies/123"
+val safe = fixUrlNull(el.attr("src"))        // → null if the attribute is missing
+```
+
+### `app` HTTP client
+
+The global `app` object (from the [nicehttp](https://github.com/Blatzar/nicehttp) library) is available throughout your provider and extractors. It provides a Kotlin coroutine-friendly HTTP client with automatic cookie handling, compression, and a browser-like default `User-Agent`.
+
+```kotlin common app methods
+// GET request — returns an NiceResponse
+val response = app.get(url)
+val html = response.text
+val doc = response.document       // Jsoup Document
+val json = response.parsedSafe<MyData>()
+
+// GET with extra options
+val response = app.get(
+    url,
+    headers = mapOf("Referer" to mainUrl),
+    referer = mainUrl,
+    timeout = 30,
+)
+
+// POST with form data
+val response = app.post(url, data = mapOf("key" to "value"))
+
+// POST with JSON body
+val response = app.post(url, json = mapOf("key" to "value"))
+```
+
+### `mainPageOf`
+
+```kotlin
+fun mainPageOf(vararg elements: Pair<String, String>): List<MainPageData>
+fun mainPageOf(vararg elements: MainPageData): List<MainPageData>
+```
+
+A builder helper for defining homepage sections. The most common form takes URL-to-name pairs:
+
+```kotlin
+override val mainPage = mainPageOf(
+    "$mainUrl/trending" to "Trending",
+    "$mainUrl/new" to "New releases",
+)
+```

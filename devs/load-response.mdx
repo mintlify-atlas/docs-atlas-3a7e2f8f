@@ -1,0 +1,448 @@
+---
+title: "Load responses"
+description: "Reference for all LoadResponse types returned by the load() method."
+---
+
+`load(url)` must return a `LoadResponse` that describes the full detail page for a piece of content. CloudStream displays the fields you populate — title, plot, poster, cast, and so on — and uses them to drive playback.
+
+Each response type has a corresponding builder function (`newMovieLoadResponse`, `newTvSeriesLoadResponse`, etc.) that accepts the required fields and an optional `initializer` lambda for optional fields.
+
+<Note>
+  Always use the builder functions — direct construction is deprecated and will produce a compile error.
+</Note>
+
+---
+
+## Common fields
+
+All `LoadResponse` types share the following fields. Set them inside the initializer lambda.
+
+<ResponseField name="name" type="String" required>
+  The title of the content, shown at the top of the detail page.
+</ResponseField>
+
+<ResponseField name="url" type="String" required>
+  The canonical URL of the content page. Also used as the stable key for caching and sync unless you override `uniqueUrl`.
+</ResponseField>
+
+<ResponseField name="apiName" type="String" required>
+  Set automatically by the builder to match your `MainAPI.name`. Do not override.
+</ResponseField>
+
+<ResponseField name="type" type="TvType" required>
+  The content type. Must match the type declared in `supportedTypes`. See [MainAPI reference](/devs/mainapi#content-types) for all values.
+</ResponseField>
+
+<ResponseField name="posterUrl" type="String?">
+  URL for the poster image displayed on the detail page.
+</ResponseField>
+
+<ResponseField name="backgroundPosterUrl" type="String?">
+  URL for a wide background/banner image shown behind the detail page header.
+</ResponseField>
+
+<ResponseField name="plot" type="String?">
+  A synopsis or description of the content.
+</ResponseField>
+
+<ResponseField name="year" type="Int?">
+  Release year.
+</ResponseField>
+
+<ResponseField name="duration" type="Int?">
+  Runtime in minutes. Use `addDuration(string)` to parse a duration string like `"1h 42m"` automatically.
+</ResponseField>
+
+<ResponseField name="score" type="Score?">
+  Audience rating. Use the `Score` factory methods — do not construct directly.
+
+  ```kotlin score helpers
+  this.score = Score.from10(7.8)          // value ∈ [0.0, 10.0]
+  this.score = Score.from100(78)          // value ∈ [0, 100]
+  this.score = Score.from5(4.1)           // value ∈ [0.0, 5.0]
+  this.score = Score.from10("7.8")        // parses a string
+  this.score = Score.from(value, 10)      // generic: value ∈ [0, maxScore]
+
+  // Or use the extension function on LoadResponse
+  addScore("7.8", maxValue = 10)
+  ```
+</ResponseField>
+
+<ResponseField name="tags" type="List&lt;String&gt;?">
+  Genre or tag labels shown on the detail page (e.g. `listOf("Action", "Comedy")`).
+</ResponseField>
+
+<ResponseField name="contentRating" type="String?">
+  A content rating string such as `"PG-13"` or `"TV-MA"`.
+</ResponseField>
+
+<ResponseField name="actors" type="List&lt;ActorData&gt;?">
+  The cast. Use the `addActors` extension functions for convenience:
+
+  ```kotlin actor helpers
+  // From a list of name strings
+  addActors(listOf("Keanu Reeves", "Laurence Fishburne"))
+
+  // From Actor objects with optional images
+  addActors(listOf(
+      Actor("Keanu Reeves", image = "https://example.com/keanu.jpg"),
+      Actor("Laurence Fishburne"),
+  ))
+
+  // With roles
+  addActors(listOf(
+      Actor("Keanu Reeves") to ActorRole.Main,
+      Actor("Hugo Weaving") to ActorRole.Supporting,
+  ))
+  ```
+</ResponseField>
+
+<ResponseField name="recommendations" type="List&lt;SearchResponse&gt;?">
+  Related content shown in a "You may also like" row. Accepts any `SearchResponse` list — use the same builder functions you use in `search()`.
+</ResponseField>
+
+<ResponseField name="showStatus" type="ShowStatus?">
+  For ongoing or completed series.
+
+  | Value | Meaning |
+  |---|---|
+  | `ShowStatus.Ongoing` | Still airing |
+  | `ShowStatus.Completed` | Finished |
+</ResponseField>
+
+<ResponseField name="comingSoon" type="Boolean">
+  When `true`, the content is not yet available and no play button is shown. The builders set this automatically when the required data (e.g. `dataUrl` or `episodes`) is blank or empty.
+</ResponseField>
+
+<ResponseField name="syncData" type="MutableMap&lt;String, String&gt;">
+  External database IDs for sync services. Use the provided extension functions rather than writing to this map directly:
+
+  ```kotlin sync id helpers
+  addImdbId("tt0133093")
+  addImdbUrl("https://www.imdb.com/title/tt0133093/")
+  addMalId(1535)
+  addAniListId(11061)
+  addTMDbId("603")
+  ```
+</ResponseField>
+
+---
+
+## MovieLoadResponse
+
+For standalone movies and anime movies. The `dataUrl` is passed directly to `loadLinks()` when the user taps play.
+
+```kotlin
+suspend fun MainAPI.newMovieLoadResponse(
+    name: String,
+    url: String,
+    type: TvType,
+    dataUrl: String,
+    initializer: suspend MovieLoadResponse.() -> Unit = {},
+): MovieLoadResponse
+```
+
+<ParamField path="name" type="String" required>
+  The movie title.
+</ParamField>
+
+<ParamField path="url" type="String" required>
+  The canonical URL of the movie page.
+</ParamField>
+
+<ParamField path="type" type="TvType" required>
+  Typically `TvType.Movie` or `TvType.AnimeMovie`.
+</ParamField>
+
+<ParamField path="dataUrl" type="String" required>
+  The URL or data string that will be passed to `loadLinks()`. Often the same as `url`, but can be a different URL if the links are on a separate page.
+</ParamField>
+
+```kotlin complete example
+override suspend fun load(url: String): LoadResponse {
+    val doc = app.get(url).document
+
+    return newMovieLoadResponse(
+        name = doc.selectFirst("h1")!!.text(),
+        url = url,
+        type = TvType.Movie,
+        dataUrl = url,
+    ) {
+        posterUrl = fixUrlNull(doc.selectFirst("img.poster")?.attr("src"))
+        plot = doc.selectFirst(".synopsis")?.text()
+        year = doc.selectFirst(".year")?.text()?.trim()?.toIntOrNull()
+        score = Score.from10(doc.selectFirst(".rating")?.text())
+        tags = doc.select(".genre").map { it.text() }
+        addActors(doc.select(".cast .name").map { it.text() })
+        addImdbUrl(doc.selectFirst("a[href*=imdb.com]")?.attr("href"))
+        addTrailer(doc.selectFirst("a.trailer")?.attr("href"))
+    }
+}
+```
+
+---
+
+## TvSeriesLoadResponse
+
+For episodic series — live-action, cartoons, and Asian dramas. You must provide a flat `List<Episode>` that covers all seasons.
+
+```kotlin
+suspend fun MainAPI.newTvSeriesLoadResponse(
+    name: String,
+    url: String,
+    type: TvType,
+    episodes: List<Episode>,
+    initializer: suspend TvSeriesLoadResponse.() -> Unit = {},
+): TvSeriesLoadResponse
+```
+
+<ParamField path="episodes" type="List&lt;Episode&gt;" required>
+  All episodes across all seasons. See the `Episode` section below.
+</ParamField>
+
+```kotlin complete example
+override suspend fun load(url: String): LoadResponse {
+    val doc = app.get(url).document
+
+    val episodes = doc.select(".episode").mapIndexed { index, el ->
+        newEpisode(el.selectFirst("a")!!.attr("href")) {
+            name = el.selectFirst(".ep-name")?.text()
+            season = el.attr("data-season").toIntOrNull()
+            episode = el.attr("data-episode").toIntOrNull() ?: (index + 1)
+            posterUrl = fixUrlNull(el.selectFirst("img")?.attr("src"))
+            description = el.selectFirst(".ep-desc")?.text()
+            addDate(el.selectFirst(".air-date")?.text())
+        }
+    }
+
+    return newTvSeriesLoadResponse(
+        name = doc.selectFirst("h1")!!.text(),
+        url = url,
+        type = TvType.TvSeries,
+        episodes = episodes,
+    ) {
+        posterUrl = fixUrlNull(doc.selectFirst("img.poster")?.attr("src"))
+        plot = doc.selectFirst(".synopsis")?.text()
+        showStatus = if (doc.text().contains("Ongoing")) ShowStatus.Ongoing else ShowStatus.Completed
+        tags = doc.select(".genre").map { it.text() }
+    }
+}
+```
+
+### `Episode`
+
+Use `newEpisode(url)` or `newEpisode(data)` to create episodes. Never call the `Episode` constructor directly.
+
+```kotlin
+fun MainAPI.newEpisode(
+    url: String,
+    fix: Boolean = true,
+    initializer: Episode.() -> Unit = {},
+): Episode
+```
+
+<Expandable title="Episode fields">
+  <ResponseField name="data" type="String" required>
+    The URL or data string passed to `loadLinks()` when this episode is played.
+  </ResponseField>
+
+  <ResponseField name="name" type="String?">
+    The episode title.
+  </ResponseField>
+
+  <ResponseField name="season" type="Int?">
+    Season number. Omit for single-season shows.
+  </ResponseField>
+
+  <ResponseField name="episode" type="Int?">
+    Episode number within the season.
+  </ResponseField>
+
+  <ResponseField name="posterUrl" type="String?">
+    A thumbnail image for the episode.
+  </ResponseField>
+
+  <ResponseField name="description" type="String?">
+    A short episode synopsis.
+  </ResponseField>
+
+  <ResponseField name="score" type="Score?">
+    Per-episode rating.
+  </ResponseField>
+
+  <ResponseField name="date" type="Long?">
+    Air date as a Unix timestamp in milliseconds. Use `addDate(string)` to parse a date string:
+
+    ```kotlin
+    addDate("2024-03-15")                   // default format "yyyy-MM-dd"
+    addDate("15/03/2024", "dd/MM/yyyy")     // custom format
+    ```
+  </ResponseField>
+</Expandable>
+
+```kotlin episode examples
+// Simple episode with just a URL
+newEpisode("$mainUrl/episode/1")
+
+// Full episode
+newEpisode("$mainUrl/ep/42") {
+    name = "The One Where They All Learn"
+    season = 3
+    episode = 5
+    description = "A surprising turn of events."
+    score = Score.from10(8.4)
+    addDate("2024-01-20")
+}
+
+// Episode with serialised data object
+data class EpData(val id: String, val server: String)
+newEpisode(EpData(id = "abc123", server = "main")) {
+    name = "Pilot"
+    episode = 1
+}
+```
+
+---
+
+## AnimeLoadResponse
+
+For anime series and OVAs. Supports separate dubbed and subbed episode lists under the same title.
+
+```kotlin
+suspend fun MainAPI.newAnimeLoadResponse(
+    name: String,
+    url: String,
+    type: TvType,
+    comingSoonIfNone: Boolean = true,
+    initializer: suspend AnimeLoadResponse.() -> Unit = {},
+): AnimeLoadResponse
+```
+
+<ParamField path="comingSoonIfNone" type="Boolean" default="true">
+  When `true`, the `comingSoon` flag is set automatically if no episodes are added in the initializer.
+</ParamField>
+
+Use `addEpisodes(DubStatus, episodes)` inside the initializer to attach episode lists:
+
+```kotlin complete example
+override suspend fun load(url: String): LoadResponse {
+    val doc = app.get(url).document
+
+    val subEpisodes = doc.select(".sub-ep").map { el ->
+        newEpisode(el.attr("data-url")) {
+            episode = el.attr("data-ep").toIntOrNull()
+        }
+    }
+    val dubEpisodes = doc.select(".dub-ep").map { el ->
+        newEpisode(el.attr("data-url")) {
+            episode = el.attr("data-ep").toIntOrNull()
+        }
+    }
+
+    return newAnimeLoadResponse(
+        name = doc.selectFirst("h1.title")!!.text(),
+        url = url,
+        type = TvType.Anime,
+    ) {
+        addEpisodes(DubStatus.Subbed, subEpisodes)
+        addEpisodes(DubStatus.Dubbed, dubEpisodes)
+
+        posterUrl = fixUrlNull(doc.selectFirst("img.cover")?.attr("src"))
+        plot = doc.selectFirst(".description")?.text()
+        tags = doc.select(".genre-tag").map { it.text() }
+        showStatus = ShowStatus.Ongoing
+        addMalId(doc.selectFirst("[data-mal-id]")?.attr("data-mal-id")?.toIntOrNull())
+    }
+}
+```
+
+<Tip>
+  `addEpisodes` appends to any existing list for that `DubStatus`. You can call it multiple times safely.
+</Tip>
+
+---
+
+## LiveStreamLoadResponse
+
+For live streams and linear TV channels. The `dataUrl` is passed straight to `loadLinks()` each time the user taps play.
+
+```kotlin
+suspend fun MainAPI.newLiveStreamLoadResponse(
+    name: String,
+    url: String,
+    dataUrl: String,
+    initializer: suspend LiveStreamLoadResponse.() -> Unit = {},
+): LiveStreamLoadResponse
+```
+
+```kotlin example
+override suspend fun load(url: String): LoadResponse {
+    val doc = app.get(url).document
+    val streamUrl = doc.selectFirst("source[src]")?.attr("src") ?: url
+
+    return newLiveStreamLoadResponse(
+        name = doc.selectFirst("h1")!!.text(),
+        url = url,
+        dataUrl = streamUrl,
+    ) {
+        posterUrl = fixUrlNull(doc.selectFirst("img.logo")?.attr("src"))
+        plot = doc.selectFirst(".description")?.text()
+    }
+}
+```
+
+---
+
+## TorrentLoadResponse
+
+For torrent-based content. You supply a magnet link, a `.torrent` file URL, or both.
+
+```kotlin
+suspend fun MainAPI.newTorrentLoadResponse(
+    name: String,
+    url: String,
+    magnet: String? = null,
+    torrent: String? = null,
+    initializer: suspend TorrentLoadResponse.() -> Unit = {},
+): TorrentLoadResponse
+```
+
+<ParamField path="magnet" type="String?">
+  A magnet link (e.g. `"magnet:?xt=urn:btih:..."`).
+</ParamField>
+
+<ParamField path="torrent" type="String?">
+  A URL to a `.torrent` file.
+</ParamField>
+
+```kotlin example
+return newTorrentLoadResponse(
+    name = title,
+    url = url,
+    magnet = "magnet:?xt=urn:btih:abc123&dn=My+Movie",
+) {
+    posterUrl = posterUrl
+    plot = synopsis
+    year = 2024
+}
+```
+
+---
+
+## Trailers
+
+All `LoadResponse` types support trailers. Call `addTrailer()` inside the initializer:
+
+```kotlin
+// Single trailer URL (will be resolved via loadExtractor)
+addTrailer("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+// With referer
+addTrailer(trailerUrl, referer = mainUrl)
+
+// Multiple trailers
+addTrailer(listOf(trailer1Url, trailer2Url))
+
+// Raw direct URL (skip extractor resolution)
+addTrailer(videoUrl, addRaw = true)
+```

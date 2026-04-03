@@ -1,0 +1,118 @@
+---
+title: "Sync providers (tracking)"
+description: "Let users navigate from their personal tracking lists directly to your provider's content pages by implementing SyncIdName support in your MainAPI."
+---
+
+CloudStream integrates with external tracking services — AniList, MyAnimeList, Kitsu, Simkl, and others — so users can keep their watch history in sync across devices. Your provider can participate in this system by declaring which tracking IDs it understands and implementing a method that converts those IDs into URLs.
+
+<Note>
+This is distinct from the user-facing tracking setup (signing into AniList, MyAnimeList, etc.). That OAuth flow is handled entirely by the app. As an extension developer, you only need to declare which sync ID formats your provider can resolve.
+</Note>
+
+## How it works
+
+When a user opens their library from a tracking service, CloudStream holds an external ID — for example, an AniList ID or an IMDb ID — and needs to find a URL on your provider for that title. It does this by:
+
+1. Calling `getLoadUrl(name: SyncIdName, id: String)` on every registered provider.
+2. Taking the first non-`null` result.
+3. Passing that URL to `load()` as if the user had navigated there manually.
+
+Your provider tells the app which ID types it can handle via the `supportedSyncNames` property. The app only calls `getLoadUrl()` for the ID types you declare there.
+
+## SyncIdName values
+
+`SyncIdName` is an enum defined in the CloudStream library. The full set of values is:
+
+| Value | Tracking service |
+|---|---|
+| `SyncIdName.Anilist` | AniList |
+| `SyncIdName.MyAnimeList` | MyAnimeList |
+| `SyncIdName.Kitsu` | Kitsu |
+| `SyncIdName.Trakt` | Trakt |
+| `SyncIdName.Imdb` | IMDb |
+| `SyncIdName.Simkl` | Simkl |
+| `SyncIdName.LocalList` | CloudStream's built-in local list |
+
+## Implementing sync support
+
+Override two members in your `MainAPI` subclass: `supportedSyncNames` and `getLoadUrl()`.
+
+```kotlin MyProvider.kt
+class MyProvider : MainAPI() {
+    override var name = "My Provider"
+    override var mainUrl = "https://example.com"
+
+    // Declare which sync services this provider can resolve
+    override val supportedSyncNames = setOf(SyncIdName.Imdb)
+
+    // Convert an external ID into a URL on your provider
+    override suspend fun getLoadUrl(name: SyncIdName, id: String): String? {
+        return when (name) {
+            SyncIdName.Imdb -> "$mainUrl/imdb/$id"
+            else -> null
+        }
+    }
+}
+```
+
+Return `null` for any ID type you cannot handle, even if it appears in `supportedSyncNames`. Returning `null` causes the app to skip your provider silently.
+
+## A more complete example
+
+If your provider can resolve both IMDb and AniList IDs, declare both in `supportedSyncNames` and handle each in `getLoadUrl()`:
+
+```kotlin MyProvider.kt
+class MyProvider : MainAPI() {
+    override var name = "My Provider"
+    override var mainUrl = "https://example.com"
+
+    override val supportedSyncNames = setOf(
+        SyncIdName.Imdb,
+        SyncIdName.Anilist,
+    )
+
+    override suspend fun getLoadUrl(name: SyncIdName, id: String): String? {
+        return when (name) {
+            SyncIdName.Imdb    -> "$mainUrl/movie/imdb/$id"
+            SyncIdName.Anilist -> "$mainUrl/anime/anilist/$id"
+            else               -> null
+        }
+    }
+}
+```
+
+## The full navigation flow
+
+To illustrate how the pieces fit together, here is what happens when a user opens a title from their AniList library:
+
+<Steps>
+  <Step title="User opens their AniList library">
+    CloudStream fetches the user's list from AniList. Each item has an AniList ID, for example `"21"` (One Piece).
+  </Step>
+  <Step title="User taps a title">
+    CloudStream looks for a provider that has `SyncIdName.Anilist` in its `supportedSyncNames`.
+  </Step>
+  <Step title="getLoadUrl is called">
+    For each matching provider, CloudStream calls `getLoadUrl(SyncIdName.Anilist, "21")`.
+  </Step>
+  <Step title="Provider returns a URL">
+    Your provider returns something like `"https://example.com/anime/anilist/21"`.
+  </Step>
+  <Step title="load() is called">
+    CloudStream passes that URL to your `load()` method, exactly as if the user had navigated there from a search result. The rest of the experience is identical.
+  </Step>
+</Steps>
+
+## Tips
+
+<Info>
+Implementing `supportedSyncNames` lets users navigate directly from their personal tracking lists to your provider without searching manually. It is one of the most user-visible improvements you can make to an extension.
+</Info>
+
+<Tip>
+If your provider's pages already have IMDb IDs embedded in the URL or in the page HTML, IMDb is usually the easiest sync name to support since IMDb IDs are widely used and stable.
+</Tip>
+
+<Warning>
+Only declare a `SyncIdName` in `supportedSyncNames` if your provider can genuinely resolve that ID type. Declaring names you cannot resolve does not cause errors, but it does mean `getLoadUrl()` will be called unnecessarily and will return `null`, which wastes a network call if your implementation has to fetch data to determine the result.
+</Warning>

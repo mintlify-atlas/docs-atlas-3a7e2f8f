@@ -1,0 +1,85 @@
+---
+title: "Windows"
+description: "How to run CloudStream on Windows using Windows Subsystem for Android or an Android emulator."
+---
+
+CloudStream is an Android application and does not have a native Windows build. To use it on Windows, you need to run it inside an Android environment. There are two main approaches: **Windows Subsystem for Android (WSA)** (Windows 11 only) and **Android emulators** such as BlueStacks or LDPlayer (compatible with Windows 10 and 11).
+
+<Warning>
+  Performance and compatibility vary depending on your hardware and the approach you choose. WSA generally provides the most native-feeling experience on Windows 11. Emulators work on Windows 10 and 11 but may consume more resources.
+</Warning>
+
+---
+
+## Option 1 — Windows Subsystem for Android (Windows 11 only)
+
+WSA runs Android apps directly in Windows 11 without a full virtual machine. It requires the **Amazon Appstore** package to be installed first, which bundles WSA.
+
+<Steps>
+  <Step title="Install WSA via the Microsoft Store">
+    Open the **Microsoft Store** and search for **Windows Subsystem for Android**. If prompted, install the **Amazon Appstore** — this automatically installs WSA on your system.
+
+    <Note>
+      WSA requires Windows 11 with virtualization enabled in your BIOS/UEFI. Check **Task Manager → Performance → CPU** to confirm virtualization is listed as "Enabled".
+    </Note>
+  </Step>
+  <Step title="Enable developer mode in WSA">
+    Open the **Windows Subsystem for Android** settings app (search for it in the Start menu). Under **Developer**, toggle **Developer mode** on. This exposes an ADB endpoint you can connect to.
+  </Step>
+  <Step title="Connect ADB to WSA">
+    Open a **Command Prompt** or **PowerShell** window and run:
+
+    ```powershell
+    adb connect 127.0.0.1:58526
+    ```
+
+    You should see `connected to 127.0.0.1:58526` if WSA is running.
+
+    <Tip>
+      If `adb` is not recognized, download the Android SDK Platform Tools from the [Android developer site](https://developer.android.com/tools/releases/platform-tools) and add the extracted folder to your PATH, or run `adb` from that directory directly.
+    </Tip>
+  </Step>
+  <Step title="Download the CloudStream APK">
+    On your Windows machine, go to the [CloudStream GitHub Releases page](https://github.com/recloudstream/cloudstream/releases) and download the latest stable APK.
+  </Step>
+  <Step title="Install the APK">
+    In the same Command Prompt or PowerShell window, run:
+
+    ```powershell
+    adb install cloudstream.apk
+    ```
+
+    CloudStream will appear in your WSA app list and in the Windows Start menu.
+  </Step>
+  <Step title="Launch CloudStream">
+    Open CloudStream from the Start menu or from the WSA app library. Complete the first-run setup and install extensions via **Settings → Extensions**.
+  </Step>
+</Steps>
+
+---
+
+## Option 2 — Android emulator (Windows 10 & 11)
+
+Android emulators such as **BlueStacks**, **LDPlayer**, and **MEmu** let you run Android apps on Windows 10 and 11. BlueStacks is used as the example here, but the steps are similar for other emulators.
+
+<Steps>
+  <Step title="Download and install BlueStacks">
+    Go to [bluestacks.com](https://www.bluestacks.com) and download the latest installer. Run the installer and follow the prompts. BlueStacks will set up an Android environment on your PC.
+  </Step>
+  <Step title="Download the CloudStream APK">
+    In your regular Windows browser, go to the [CloudStream GitHub Releases page](https://github.com/recloudstream/cloudstream/releases) and download the latest stable APK to your Downloads folder.
+  </Step>
+  <Step title="Install the APK in BlueStacks">
+    With BlueStacks open, you can install the APK in either of these ways:
+
+    - **Drag and drop:** Drag the downloaded APK file directly onto the BlueStacks window. BlueStacks will detect it and begin installation automatically.
+    - **APK installer:** Click the APK installer icon in the BlueStacks sidebar (the icon looks like an Android robot with a down arrow), then browse to and select your APK.
+  </Step>
+  <Step title="Launch CloudStream">
+    Find CloudStream in the BlueStacks app drawer. Open it, complete the setup wizard, and add extensions from **Settings → Extensions**.
+  </Step>
+</Steps>
+
+<Tip>
+  Enable virtualization (Intel VT-x or AMD-V) in your BIOS/UEFI if BlueStacks warns about performance. Most modern PCs have this available but it may be off by default.
+</Tip>

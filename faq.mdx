@@ -1,0 +1,76 @@
+---
+title: "Frequently asked questions"
+description: "Answers to the most common questions about CloudStream."
+---
+
+<AccordionGroup>
+  <Accordion title="Is CloudStream free?">
+    Yes. CloudStream is completely free to use and is open source, released under the **GPL-3.0 license**. There are no subscriptions, in-app purchases, or hidden costs. The source code is available on [GitHub](https://github.com/recloudstream/cloudstream).
+  </Accordion>
+
+  <Accordion title="Is CloudStream on the Google Play Store?">
+    No. CloudStream is not distributed through the Google Play Store and must be installed by sideloading the APK. Download the latest release from the [GitHub Releases page](https://github.com/recloudstream/cloudstream/releases). See the [Android setup guide](/devices/android) for step-by-step instructions.
+  </Accordion>
+
+  <Accordion title="Why doesn't the app show any content by default?">
+    CloudStream has no built-in content sources. All content is provided by **extensions**, which are small plugins that connect the app to external sites or services. You must install at least one extension before you can browse or stream anything. Go to **Settings → Extensions**, add a community repository, and install the extensions you want.
+  </Accordion>
+
+  <Accordion title="Where do I get extensions?">
+    Extensions are hosted in community repositories. Inside CloudStream, go to **Settings → Extensions** and add a repository URL. You can find community-maintained repository lists on the [CloudStream Discord](https://discord.gg/5Hus6fM) or on the [reCloudStream GitHub organization](https://github.com/recloudstream).
+  </Accordion>
+
+  <Accordion title="Are extensions safe to install?">
+    CloudStream cannot verify or vouch for the safety of third-party extensions. Extensions are community-created and are not reviewed or endorsed by the CloudStream developers. Only install extensions from repositories and sources that you trust. Review an extension's source code before installing it if you have any doubts.
+  </Accordion>
+
+  <Accordion title="Does CloudStream collect any data?">
+    No. CloudStream contains no analytics, telemetry, or tracking of any kind. No data about your usage, searches, or viewed content is sent to CloudStream developers or any third party. This is confirmed by the absence of any analytics library in the codebase and is one of the project's stated design goals.
+  </Accordion>
+
+  <Accordion title="Can I use CloudStream on iOS or iPhone?">
+    No. CloudStream is an Android application and does not have an iOS version. There are no plans for an iOS release.
+  </Accordion>
+
+  <Accordion title="How do I update CloudStream?">
+    CloudStream can check for updates on its own: open **Settings → Updates** to see if a newer version is available and install it from there. You can also update manually by downloading the latest APK from [GitHub Releases](https://github.com/recloudstream/cloudstream/releases) and installing it over your existing installation — no uninstall is needed.
+  </Accordion>
+
+  <Accordion title="What is the difference between stable and prerelease?">
+    - **Stable** releases are tested builds recommended for everyday use. They are published less frequently but are generally more reliable.
+    - **Prerelease** builds (marked with `-PRE` in the version name) contain the latest features and fixes but may include bugs or unfinished functionality. They are intended for users who want to test new features and are comfortable reporting issues.
+
+    Both variants can be installed on the same device at the same time because they use different application IDs.
+  </Accordion>
+
+  <Accordion title="How do I report a bug?">
+    Open an issue on GitHub using the official bug report template:
+
+    [Submit a bug report](https://github.com/recloudstream/cloudstream/issues/new?assignees=&labels=bug&projects=&template=application-bug.yml)
+
+    Include your CloudStream version, device model, Android version, a clear description of the problem, and reproducible steps. Issues that cannot be reproduced are unlikely to be resolved.
+  </Accordion>
+
+  <Accordion title="Can I build CloudStream myself?">
+    Yes. CloudStream is fully open source and can be built from source. You will need:
+
+    - **Android Studio** (latest stable release recommended)
+    - **JDK 17**
+    - **Gradle** (managed by the project's Gradle wrapper)
+
+    Clone the repository and open it in Android Studio:
+
+    ```bash
+    git clone https://github.com/recloudstream/cloudstream.git
+    cd cloudstream
+    ```
+
+    Then build using Android Studio's **Build → Make Project** command, or from the command line:
+
+    ```bash
+    ./gradlew assembleStableRelease
+    ```
+
+    See the [Contributing section of the README](https://github.com/recloudstream/cloudstream#contributing) for more details.
+  </Accordion>
+</AccordionGroup>

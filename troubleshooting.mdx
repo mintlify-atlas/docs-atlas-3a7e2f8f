@@ -1,0 +1,73 @@
+---
+title: "Troubleshooting"
+description: "Solutions to common problems you may encounter when using CloudStream."
+---
+
+If you run into a problem that is not listed here or that these steps do not resolve, open an issue on [GitHub](https://github.com/recloudstream/cloudstream/issues/new/choose) using the bug report template.
+
+<AccordionGroup>
+  <Accordion title="Extension not loading / no content">
+    If an extension fails to load or returns no results, try the following:
+
+    1. Open **Settings → Extensions** and check the status of the affected extension. A warning or error icon indicates it is unavailable or outdated.
+    2. Tap the extension and choose **Reinstall** or **Update** if an update is available.
+    3. Open the source website in a browser to check whether the site itself is accessible. If the site is down, the extension will not work until it comes back online.
+    4. Remove and re-add the repository, then reinstall the extension.
+  </Accordion>
+
+  <Accordion title="Video won't play">
+    Playback failures are usually source-specific. Try these steps in order:
+
+    1. On the playback screen, open the **Sources** list and select a different mirror or server.
+    2. Check your internet connection — try loading a webpage or video in your browser.
+    3. Clear the app cache via **Settings → App info → Storage → Clear cache** in Android settings, then try again.
+    4. Some sources are only accessible from certain regions. If you suspect a geo-restriction, try connecting through a VPN.
+  </Accordion>
+
+  <Accordion title="Cloudflare / bot detection errors">
+    CloudStream includes a built-in Cloudflare bypass (`CloudflareKiller`) that handles most standard Cloudflare challenges automatically by using a WebView to obtain valid cookies. However, some sites use stricter bot detection that this bypass cannot always overcome.
+
+    Steps to try:
+
+    1. On the content page, look for a **WebView** option or button and try loading the source through it — this opens the page in a real browser environment.
+    2. Wait a few minutes and retry; Cloudflare challenges are sometimes temporary.
+    3. If a specific source consistently fails, check whether other users report the same issue on the extension's repository or on the [CloudStream Discord](https://discord.gg/5Hus6fM).
+  </Accordion>
+
+  <Accordion title="Subtitles not showing">
+    1. During playback, open the player menu and check that subtitles are enabled and that the correct language track is selected.
+    2. If no subtitle tracks appear, the extension or source may not provide them for this title. Some subtitle providers require you to configure an account (e.g., OpenSubtitles) in **Settings → Account**.
+    3. Make sure the subtitle file was actually loaded — if you manually added a subtitle file, verify it is in a supported format (SRT, VTT, ASS).
+    4. Try a different source or mirror, as some servers bundle subtitles while others do not.
+  </Accordion>
+
+  <Accordion title="Downloads failing">
+    1. Check that CloudStream has **storage permissions**. Go to **Settings → App info → Permissions** and ensure **Storage** or **Files and media** is set to "Allow".
+    2. Verify that you have enough free space on your device. Large video files can be several gigabytes.
+    3. Not all extensions support downloading. If the download option is grayed out or missing, the extension you are using does not have download support enabled.
+    4. Try starting the download again — transient network errors can cause failures that succeed on a retry.
+  </Accordion>
+
+  <Accordion title="App crashes on startup">
+    1. Go to **Settings → App info → Storage** and tap **Clear cache**, then relaunch the app.
+    2. If the app still crashes, tap **Clear data** / **Clear storage** (this resets all app settings and accounts) and relaunch.
+    3. Uninstall and reinstall CloudStream using a freshly downloaded APK from [GitHub Releases](https://github.com/recloudstream/cloudstream/releases).
+    4. Confirm your device runs Android 6.0 or later — CloudStream does not support older Android versions.
+  </Accordion>
+
+  <Accordion title="Extensions not appearing after install">
+    1. Force-close CloudStream and reopen it. Newly installed extensions sometimes only appear after a full app restart.
+    2. Go to **Settings → Extensions** and verify that the repository URL was added correctly — a typo in the URL will prevent extensions from loading.
+    3. Check your internet connection; the app needs to fetch the extension list from the repository URL at startup.
+  </Accordion>
+
+  <Accordion title="Chromecast not working">
+    1. Make sure your Android device and your Chromecast (or Google TV device) are connected to the **same Wi-Fi network**. Chromecast discovery relies on local network multicast and will not work across different networks.
+    2. Some sources use encrypted or DRM-protected streams that cannot be cast. If the cast button is grayed out or casting fails for a specific source, try a different server or mirror.
+    3. Restart both the CloudStream app and your Chromecast device (unplug and replug the Chromecast), then try again.
+  </Accordion>
+</AccordionGroup>
+
+<Info>
+  If none of the above steps resolve your issue, please open a bug report on [GitHub](https://github.com/recloudstream/cloudstream/issues/new?assignees=&labels=bug&projects=&template=application-bug.yml). Include your CloudStream version, device model, Android version, and clear steps to reproduce the problem.
+</Info>

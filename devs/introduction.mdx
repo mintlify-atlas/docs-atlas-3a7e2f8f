@@ -1,0 +1,113 @@
+---
+title: "Extension development overview"
+description: "Learn how CloudStream extensions work, the core concepts you need to know, and how to get started building your own."
+---
+
+CloudStream is an extension-based Android media center. Rather than bundling streaming providers directly into the app, it loads them at runtime as `.cs3` plugin files. This means anyone can write and distribute an extension without shipping a modified version of the app.
+
+## How extensions work
+
+A `.cs3` file is a compiled Android plugin — essentially an APK renamed with a different extension. The CloudStream app downloads it from a repository, loads it dynamically using a custom class loader, and calls into it through a set of well-defined abstract classes.
+
+The lifecycle looks like this:
+
+1. The app downloads a `.cs3` file from a repository manifest.
+2. CloudStream loads the file and finds the class annotated with `@CloudstreamPlugin`.
+3. It instantiates that class and calls `load(context)`.
+4. Your plugin registers one or more `MainAPI` providers (and optionally `ExtractorApi` instances).
+5. When a user searches or browses, CloudStream calls `search()` or `getMainPage()` on your provider.
+6. When a user selects something to watch, CloudStream calls `load()` to retrieve metadata, then `loadLinks()` to resolve playable video URLs.
+
+## Core concepts
+
+### Plugin
+
+`Plugin` is the entry point class for your extension. You must subclass it and annotate your class with `@CloudstreamPlugin` so the loader can find it. Its `load(context: Context)` method is where you register your providers.
+
+```kotlin plugin entry point
+@CloudstreamPlugin
+class MyPlugin : Plugin() {
+    override fun load(context: Context) {
+        registerMainAPI(MyProvider())
+        // Optionally: registerExtractorAPI(MyExtractor())
+    }
+}
+```
+
+`Plugin` extends `BasePlugin`, which provides `registerMainAPI()` and `registerExtractorAPI()`. These methods add your providers to the global list that CloudStream queries at runtime.
+
+### MainAPI
+
+`MainAPI` is the abstract class that represents a streaming source. Each provider you write will extend it and implement at minimum:
+
+| Method | Purpose |
+|---|---|
+| `getMainPage()` | Returns content for the app's home screen |
+| `search()` | Returns search results for a query |
+| `load()` | Parses a detail page into a `LoadResponse` |
+| `loadLinks()` | Resolves playable video URLs for a piece of content |
+
+You also declare metadata on the class directly:
+
+```kotlin MainAPI metadata
+override var name = "My Provider"
+override var mainUrl = "https://example.com"
+override var lang = "en"
+override val hasMainPage = true
+override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+```
+
+### ExtractorApi
+
+Many sites embed their videos through third-party hosts (e.g. Doodstream, Vidcloud). `ExtractorApi` is an abstract class that knows how to extract a direct video URL from one of these embed pages. CloudStream ships with extractors for many common hosts, and you can register your own with `registerExtractorAPI()`.
+
+Your `loadLinks()` implementation typically calls the `loadExtractor()` helper function, which looks up the correct `ExtractorApi` for a given URL automatically.
+
+### Repository
+
+A repository is a JSON manifest hosted at a public URL. It tells CloudStream what extensions are available, where to download them, and metadata like version, author, and supported content types. Users add a repository URL in the app's settings, and CloudStream fetches the manifest to show available extensions.
+
+The `Repository` data class structure looks like this:
+
+```kotlin repository manifest structure
+data class Repository(
+    val iconUrl: String?,
+    val name: String,
+    val description: String?,
+    val manifestVersion: Int,
+    val pluginLists: List<String>  // URLs to plugin list JSON files
+)
+```
+
+Each entry in a plugin list is a `SitePlugin`, which contains the `.cs3` download URL, version number, display name, and other metadata.
+
+## The CloudStream library
+
+Extensions are written in Kotlin and depend on the CloudStream library, which is published to JitPack. The current development target is the `pre-release` tag:
+
+```kotlin build.gradle.kts
+dependencies {
+    compileOnly("com.github.recloudstream:cloudstream:pre-release")
+}
+```
+
+<Note>
+Extensions use `compileOnly` rather than `implementation`. The CloudStream app already provides the library at runtime, so bundling it into your `.cs3` file would waste space and could cause conflicts. See the [setup guide](/devs/setup) for a full Gradle configuration.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Development setup" icon="wrench" href="/devs/setup">
+    Configure Android Studio, Gradle, and JitPack to start building extensions.
+  </Card>
+  <Card title="Your first extension" icon="rocket" href="/devs/first-extension">
+    Build a complete, working extension step by step.
+  </Card>
+  <Card title="MainAPI reference" icon="book" href="/devs/mainapi">
+    Full reference for all MainAPI properties and methods.
+  </Card>
+  <Card title="Extractors reference" icon="link" href="/devs/extractors">
+    Learn how to write and register custom ExtractorApi implementations.
+  </Card>
+</CardGroup>

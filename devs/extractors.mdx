@@ -1,0 +1,508 @@
+---
+title: "Extractors"
+description: "How extractors work, how to use loadExtractor, and how to write a custom ExtractorApi."
+---
+
+Extractors bridge the gap between an embed or hosting page URL (e.g. `https://doodstream.com/e/abc123`) and the direct video stream the player needs. When `loadLinks()` encounters an embed URL, it passes that URL to `loadExtractor()`, which finds the right extractor, runs it, and delivers `ExtractorLink` objects to the `callback`.
+
+---
+
+## Using `loadExtractor`
+
+`loadExtractor` is the primary tool inside `loadLinks()`. It inspects the URL, finds a matching built-in or registered extractor, runs it, and fires both `subtitleCallback` and `callback` with whatever it finds.
+
+```kotlin signature
+suspend fun loadExtractor(
+    url: String,
+    referer: String? = null,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean
+```
+
+<ParamField path="url" type="String">
+  The embed or hosting page URL to resolve.
+</ParamField>
+
+<ParamField path="referer" type="String?">
+  The referer header to send with the request. Usually the page URL that contained the embed. Pass `null` to omit.
+</ParamField>
+
+<ParamField path="subtitleCallback" type="(SubtitleFile) -> Unit">
+  Called once for each subtitle track the extractor finds.
+</ParamField>
+
+<ParamField path="callback" type="(ExtractorLink) -> Unit">
+  Called once for each playable video link the extractor produces.
+</ParamField>
+
+Returns `true` if a matching extractor was found (regardless of whether it produced any links), `false` if no extractor matched the URL.
+
+```kotlin typical loadLinks implementation
+override suspend fun loadLinks(
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean {
+    val doc = app.get(data).document
+
+    // Find all iframes on the page and try each one
+    doc.select("iframe[src]").forEach { iframe ->
+        val src = fixUrl(iframe.attr("src"))
+        loadExtractor(src, data, subtitleCallback, callback)
+    }
+
+    return true
+}
+```
+
+```kotlin with multiple link sources
+override suspend fun loadLinks(
+    data: String,
+    isCasting: Boolean,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+): Boolean {
+    // data might be a JSON-serialised object
+    val episodeData = parseJson<EpisodeData>(data)
+
+    // Fetch server list from an API
+    val servers = app.get("$mainUrl/api/servers/${episodeData.id}").parsedSafe<ServerList>()
+
+    servers?.links?.forEach { server ->
+        loadExtractor(server.url, mainUrl, subtitleCallback, callback)
+    }
+
+    return true
+}
+```
+
+---
+
+## ExtractorLink
+
+`ExtractorLink` carries everything the player needs to stream a video. Use `newExtractorLink()` to create one.
+
+```kotlin
+suspend fun newExtractorLink(
+    source: String,
+    name: String,
+    url: String,
+    type: ExtractorLinkType? = null,  // inferred from URL if null
+    initializer: suspend ExtractorLink.() -> Unit = {},
+): ExtractorLink
+```
+
+<ParamField path="source" type="String" required>
+  The name of the source (typically your extractor's `name`). Shown in the player's server selector.
+</ParamField>
+
+<ParamField path="name" type="String" required>
+  A label for this specific link, such as `"1080p"` or `"Server 1"`. Shown alongside `source` in the player.
+</ParamField>
+
+<ParamField path="url" type="String" required>
+  The direct video URL.
+</ParamField>
+
+<ParamField path="type" type="ExtractorLinkType?">
+  The stream format. When `null`, the type is inferred from the URL extension:
+
+  | Type | Description |
+  |---|---|
+  | `ExtractorLinkType.VIDEO` | A direct `.mp4` or similar single-file video |
+  | `ExtractorLinkType.M3U8` | HLS stream (`.m3u8`) |
+  | `ExtractorLinkType.DASH` | DASH stream (`.mpd`) |
+  | `ExtractorLinkType.TORRENT` | `.torrent` file |
+  | `ExtractorLinkType.MAGNET` | Magnet URI |
+</ParamField>
+
+**Fields set in the initializer:**
+
+<ResponseField name="quality" type="Int">
+  Video quality in pixels (height). Use the `Qualities` enum:
+
+  | Value | Pixels |
+  |---|---|
+  | `Qualities.P144.value` | 144p |
+  | `Qualities.P240.value` | 240p |
+  | `Qualities.P360.value` | 360p |
+  | `Qualities.P480.value` | 480p |
+  | `Qualities.P720.value` | 720p (HD) |
+  | `Qualities.P1080.value` | 1080p (Full HD) |
+  | `Qualities.P1440.value` | 1440p |
+  | `Qualities.P2160.value` | 2160p (4K) |
+  | `Qualities.Unknown.value` | Unknown / auto |
+</ResponseField>
+
+<ResponseField name="referer" type="String">
+  The referer header to send when the player fetches the stream.
+</ResponseField>
+
+<ResponseField name="headers" type="Map&lt;String, String&gt;">
+  Additional HTTP headers to include with stream requests.
+</ResponseField>
+
+<ResponseField name="extractorData" type="String?">
+  Optional opaque string passed to `extractorVerifierJob()` for providers that need a background polling job to keep links alive.
+</ResponseField>
+
+```kotlin creating an ExtractorLink
+callback(
+    newExtractorLink(
+        source = name,
+        name = "$name ${Qualities.P1080}",
+        url = videoUrl,
+    ) {
+        quality = Qualities.P1080.value
+        referer = mainUrl
+        headers = mapOf("Origin" to mainUrl)
+    }
+)
+```
+
+---
+
+## Subtitles
+
+Pass subtitle files to the `subtitleCallback` using `newSubtitleFile()`:
+
+```kotlin
+suspend fun newSubtitleFile(
+    lang: String,
+    url: String,
+    initializer: suspend SubtitleFile.() -> Unit = {},
+): SubtitleFile
+```
+
+<ParamField path="lang" type="String" required>
+  Language label or code. Accepts language names (`"English"`, `"French"`) and codes (`"en"`, `"fr"`, `"ja"`). CloudStream normalises these to IETF BCP 47 tags internally.
+</ParamField>
+
+<ParamField path="url" type="String" required>
+  URL to the subtitle file (`.srt`, `.vtt`, `.ass`, etc.).
+</ParamField>
+
+```kotlin subtitle examples
+// Pass through subtitleCallback in loadLinks
+subtitleCallback(newSubtitleFile("English", "https://example.com/sub.en.srt"))
+subtitleCallback(newSubtitleFile("French", "https://example.com/sub.fr.vtt"))
+
+// With custom headers (e.g. for protected subtitle files)
+subtitleCallback(
+    newSubtitleFile("Japanese", "https://example.com/jp.srt") {
+        headers = mapOf("Referer" to mainUrl)
+    }
+)
+```
+
+---
+
+## Built-in extractors
+
+CloudStream ships with over 300 built-in extractors covering the most common video hosting services. When `loadExtractor()` is called, it matches the URL against each extractor's `mainUrl` automatically — you never need to call extractor classes directly.
+
+<Expandable title="Selected built-in extractors">
+  | Extractor class | Hosts |
+  |---|---|
+  | `DoodLaExtractor`, `DoodstreamCom`, etc. | dood.la, doodstream.com, and mirrors |
+  | `FileMoon`, `FileMoonSx`, `FileMoonIn` | filemoon.sx, filemoon.in |
+  | `Gdriveplayer` and variants | gdriveplayer.* (many TLDs) |
+  | `Gofile` | gofile.io |
+  | `MixDrop`, `MixDropBz`, etc. | mixdrop.bz, mixdrop.ch, and mirrors |
+  | `Mp4Upload` | mp4upload.com |
+  | `StreamSB`, `StreamSB1–11`, etc. | streamsb.net and mirrors |
+  | `StreamTape`, `StreamTapeNet`, etc. | streamtape.com and mirrors |
+  | `StreamWishExtractor` | streamwish.com |
+  | `Dailymotion`, `Geodailymotion` | dailymotion.com |
+  | `YoutubeExtractor` | youtube.com |
+  | `Blogger` | blogger.com video embeds |
+  | `Voe`, `Voe1` | voe.sx |
+  | `Vidmoly` and variants | vidmoly.to, vidmoly.me |
+  | `VidhideExtractor`, `VidHidePro` | vidhide.com |
+  | `Sendvid` | sendvid.com |
+  | `Mediafire` | mediafire.com |
+  | `Upstream` | upstream.to |
+  | `Uqload` and variants | uqload.com and mirrors |
+  | `XStreamCdn` | xstreamcdn.com |
+  | `JWPlayer` | Generic JW Player embeds |
+  | `InternetArchive` | archive.org |
+  | `Megacloud`, `Rabbitstream`, `Dokicloud` | megacloud.tv, rabbitstream.net |
+  | `Videa` | videa.hu |
+  | `Cda` | cda.pl |
+  | `OkRuSSL`, `OkRuHTTP`, etc. | ok.ru |
+  | `VkExtractor` | vk.com |
+  | `CloudMailRu`, `MailRu` | cloud.mail.ru |
+</Expandable>
+
+<Note>
+  Newly registered extractors via `registerExtractorAPI()` take priority over built-in ones with the same `mainUrl`. This lets you override a built-in extractor for a specific host.
+</Note>
+
+---
+
+## ExtractorApi — abstract class
+
+Implement `ExtractorApi` to support a video host that has no built-in extractor. Register it with `registerExtractorAPI()` at plugin load time so `loadExtractor()` finds it automatically.
+
+```kotlin
+abstract class ExtractorApi {
+    abstract val name: String
+    abstract val mainUrl: String
+    abstract val requiresReferer: Boolean
+
+    open suspend fun getUrl(
+        url: String,
+        referer: String? = null,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit,
+    )
+
+    open suspend fun getUrl(url: String, referer: String? = null): List<ExtractorLink>?
+}
+```
+
+<ParamField path="name" type="String" required>
+  The extractor's display name, shown in the player.
+</ParamField>
+
+<ParamField path="mainUrl" type="String" required>
+  The host URL this extractor handles (e.g. `"https://mycustomhost.com"`). `loadExtractor()` compares incoming URLs against this value to select the right extractor.
+</ParamField>
+
+<ParamField path="requiresReferer" type="Boolean" required>
+  `true` if this host checks the `Referer` header and will reject requests without one.
+</ParamField>
+
+Override the four-parameter `getUrl()` to deliver links and subtitles via callbacks. The two-parameter version is a simpler alternative when you have no subtitles.
+
+---
+
+## Writing a custom extractor
+
+<Steps>
+  <Step title="Extend ExtractorApi">
+    Create a class that extends `ExtractorApi` and override the three abstract members.
+
+    ```kotlin custom extractor
+    class MyCustomExtractor : ExtractorApi() {
+        override val name = "MyCustomHost"
+        override val mainUrl = "https://mycustomhost.com"
+        override val requiresReferer = false
+
+        override suspend fun getUrl(
+            url: String,
+            referer: String?,
+            subtitleCallback: (SubtitleFile) -> Unit,
+            callback: (ExtractorLink) -> Unit,
+        ) {
+            val doc = app.get(url, referer = referer ?: mainUrl).document
+
+            // Parse the page for the video source
+            val videoUrl = doc.selectFirst("video source[src]")?.attr("src")
+                ?: return
+
+            callback(
+                newExtractorLink(
+                    source = name,
+                    name = name,
+                    url = videoUrl,
+                ) {
+                    this.referer = referer ?: mainUrl
+                    this.quality = Qualities.Unknown.value
+                }
+            )
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Handle multiple qualities">
+    Many hosts provide multiple quality variants. Report them all:
+
+    ```kotlin multiple qualities
+    override suspend fun getUrl(
+        url: String,
+        referer: String?,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit,
+    ) {
+        val response = app.get(url, referer = referer ?: mainUrl)
+        val json = response.parsedSafe<VideoApiResponse>() ?: return
+
+        json.sources.forEach { source ->
+            callback(
+                newExtractorLink(
+                    source = name,
+                    name = "$name ${source.label}",
+                    url = source.file,
+                ) {
+                    this.referer = referer ?: mainUrl
+                    this.quality = getQualityFromName(source.label)  // parses "1080p" → 1080
+                }
+            )
+        }
+
+        json.subtitles?.forEach { sub ->
+            subtitleCallback(newSubtitleFile(sub.lang, sub.url))
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Register in your plugin">
+    In your plugin's `load()` function, register any custom extractors before your provider is used:
+
+    ```kotlin plugin registration
+    class MyPlugin : Plugin() {
+        override fun load(context: Context) {
+            registerExtractorAPI(MyCustomExtractor())
+            registerMainAPI(MyProvider())
+        }
+    }
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Common extractor patterns
+
+### Parsing a JavaScript variable
+
+Many sites embed the stream URL in a JavaScript variable:
+
+```kotlin parsing JS variable
+override suspend fun getUrl(
+    url: String,
+    referer: String?,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+) {
+    val html = app.get(url, referer = referer ?: mainUrl).text
+
+    // Match: var playerSrc = "https://cdn.example.com/video.mp4";
+    val videoUrl = Regex("""var playerSrc\s*=\s*["']([^"']+)""")
+        .find(html)?.groupValues?.get(1) ?: return
+
+    callback(
+        newExtractorLink(source = name, name = name, url = videoUrl) {
+            this.referer = referer ?: mainUrl
+            this.quality = Qualities.Unknown.value
+        }
+    )
+}
+```
+
+### Calling a JSON API
+
+```kotlin JSON API
+override suspend fun getUrl(
+    url: String,
+    referer: String?,
+    subtitleCallback: (SubtitleFile) -> Unit,
+    callback: (ExtractorLink) -> Unit,
+) {
+    // Extract an ID from the embed URL
+    val id = url.substringAfterLast("/").substringBefore("?")
+
+    val json = app.get(
+        "$mainUrl/api/source/$id",
+        headers = mapOf("X-Requested-With" to "XMLHttpRequest"),
+        referer = url,
+    ).parsedSafe<ApiResponse>() ?: return
+
+    json.data?.forEach { source ->
+        val type = if (source.file.contains(".m3u8")) ExtractorLinkType.M3U8
+                   else ExtractorLinkType.VIDEO
+
+        callback(
+            newExtractorLink(
+                source = name,
+                name = "$name ${source.label}",
+                url = source.file,
+                type = type,
+            ) {
+                this.referer = url
+                this.quality = getQualityFromName(source.label)
+            }
+        )
+    }
+}
+```
+
+### Handling HLS streams
+
+When a host returns an HLS master playlist, set `ExtractorLinkType.M3U8`. ExoPlayer will resolve quality variants from the playlist automatically:
+
+```kotlin HLS stream
+callback(
+    newExtractorLink(
+        source = name,
+        name = name,
+        url = m3u8Url,
+        type = ExtractorLinkType.M3U8,
+    ) {
+        this.referer = referer ?: mainUrl
+        this.quality = Qualities.Unknown.value  // player resolves from playlist
+    }
+)
+```
+
+### DRM-protected streams
+
+For Widevine-protected content, use `newDrmExtractorLink()`:
+
+```kotlin DRM stream
+callback(
+    newDrmExtractorLink(
+        source = name,
+        name = name,
+        url = dashUrl,
+        type = ExtractorLinkType.DASH,
+        uuid = WIDEVINE_UUID,
+    ) {
+        this.referer = referer ?: mainUrl
+        this.quality = Qualities.P1080.value
+        this.licenseUrl = "https://license.example.com/widevine"
+    }
+)
+```
+
+---
+
+## Mirror hosts
+
+When a host has multiple domains (e.g. `mixdrop.bz`, `mixdrop.ch`, `mixdrop.to`), extend the base extractor for each additional domain:
+
+```kotlin mirror domains
+open class MyExtractorBase : ExtractorApi() {
+    override val name = "MyHost"
+    override val mainUrl = "https://myhost.com"
+    override val requiresReferer = true
+
+    override suspend fun getUrl(
+        url: String,
+        referer: String?,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit,
+    ) { /* ... extraction logic ... */ }
+}
+
+class MyHostNet : MyExtractorBase() {
+    override val mainUrl = "https://myhost.net"
+}
+
+class MyHostOrg : MyExtractorBase() {
+    override val mainUrl = "https://myhost.org"
+}
+```
+
+Register all of them in your plugin:
+
+```kotlin
+registerExtractorAPI(MyExtractorBase())
+registerExtractorAPI(MyHostNet())
+registerExtractorAPI(MyHostOrg())
+```

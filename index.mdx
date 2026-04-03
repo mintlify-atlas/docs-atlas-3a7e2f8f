@@ -1,97 +1,84 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "CloudStream"
+description: "An extension-based Android media center for streaming and downloading movies, TV shows, anime, and more — ad-free, with full user control."
 ---
 
-## Setting up
+CloudStream is a free, open-source Android app that lets you watch and download media from a wide variety of sources through a powerful extension system. There are no ads, no tracking, and no built-in content — you bring your own sources via extensions.
 
-Get your documentation site up and running in minutes.
+<Warning>
+  By default, CloudStream does not provide any video sources. You must install extensions to add streaming functionality to the app.
+</Warning>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+## Get started
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Download and install CloudStream on your Android device.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Install your first extension and start watching in minutes.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Extensions" icon="puzzle-piece" href="/features/extensions">
+    Learn how to find, install, and manage extensions.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Build an extension" icon="code" href="/devs/introduction">
+    Create your own CloudStream extension with the developer guide.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Key features
 
-Everything you need to create world-class documentation.
+<CardGroup cols={2}>
+  <Card title="Extension system" icon="puzzle-piece" href="/features/extensions">
+    Install `.cs3` plugin files from community repositories to add any streaming source.
+  </Card>
+  <Card title="Built-in player" icon="play" href="/features/player">
+    Powerful media player with subtitle support, audio tracks, and quality selection.
+  </Card>
+  <Card title="Downloads" icon="arrow-down-to-line" href="/features/downloads">
+    Download episodes and movies for offline playback.
+  </Card>
+  <Card title="Watch tracking" icon="bookmark" href="/features/tracking">
+    Sync your watch progress with AniList, MyAnimeList, Kitsu, and Simkl.
+  </Card>
+  <Card title="Android TV support" icon="tv" href="/devices/android-tv">
+    Full Android TV and Fire TV interface with remote control navigation.
+  </Card>
+  <Card title="Chromecast" icon="cast" href="/features/player">
+    Cast to any Chromecast device directly from the player.
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Set up on your device
 
-## Need inspiration?
+<CardGroup cols={2}>
+  <Card title="Android phone & tablet" icon="mobile" href="/devices/android">
+    Standard installation for Android 6.0 and above.
+  </Card>
+  <Card title="Android TV / Fire TV" icon="tv" href="/devices/android-tv">
+    Optimized TV interface with D-pad and remote support.
+  </Card>
+  <Card title="Windows (emulator)" icon="windows" href="/devices/windows">
+    Run CloudStream on Windows using an Android emulator.
+  </Card>
+  <Card title="Linux (emulator)" icon="linux" href="/devices/linux">
+    Run CloudStream on Linux using an Android emulator.
+  </Card>
+</CardGroup>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## Developer resources
+
+<CardGroup cols={2}>
+  <Card title="Extension dev guide" icon="book" href="/devs/introduction">
+    Complete guide to building and publishing CloudStream extensions.
+  </Card>
+  <Card title="MainAPI reference" icon="terminal" href="/devs/mainapi">
+    Full reference for the core extension API surface.
+  </Card>
+  <Card title="Extractors" icon="link" href="/devs/extractors">
+    Implement video link extraction for your extension.
+  </Card>
+  <Card title="Publishing" icon="upload" href="/devs/publishing">
+    Package and publish your extension to a repository.
+  </Card>
+</CardGroup>

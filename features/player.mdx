@@ -1,0 +1,117 @@
+---
+title: "Media player"
+description: "Built-in ExoPlayer-based video player with subtitle support, audio track selection, source switching, and Chromecast."
+---
+
+CloudStream includes a full-screen video player built on [Media3 ExoPlayer](https://developer.android.com/media/media3/exoplayer). It handles HLS, DASH, and direct MP4/MKV streams, supports multiple subtitle and audio tracks, and integrates with Chromecast. The player UI adapts automatically between phone, tablet, and Android TV layouts.
+
+## Playback controls
+
+The player overlay appears when you tap the screen (phone/tablet) or press any directional key (TV/remote). It hides automatically after a few seconds of inactivity.
+
+Key controls on the overlay:
+
+- **Play/pause** — center button or tap the middle of the screen
+- **Seek** — drag the progress bar, or double-tap the left/right edges of the screen to skip backward/forward by the configured interval (default 10 seconds)
+- **Speed** — open the speed dialog from the overflow menu to set playback rate (0.25× to 2×)
+- **Resize** — pinch to zoom, or use the aspect ratio button to cycle through fit, fill, and zoom modes
+- **Lock** — lock the overlay to prevent accidental taps; tap the lock icon to re-enable controls
+- **Rotate** — manually rotate or enable auto-rotation from the player menu
+
+<Tip>
+  Swipe vertically on the left side of the screen to adjust brightness, and on the right side to adjust volume. Swipe horizontally anywhere to seek. These gestures can be enabled or disabled in **Settings → Player**.
+</Tip>
+
+## Sources and quality
+
+When multiple streams are available for the same episode or movie, you can switch between them without leaving the player.
+
+<Steps>
+  <Step title="Open the source selector">
+    Tap the **source** button in the player overlay (the button labeled with the current source name or quality level).
+  </Step>
+  <Step title="Choose a source or quality">
+    A sheet appears listing all available links grouped by source name and quality. Higher-quality entries are sorted toward the top according to your configured **quality profile**.
+  </Step>
+  <Step title="Switch">
+    Tap any entry to switch. Playback resumes from the same position on the new stream.
+  </Step>
+</Steps>
+
+### Quality profiles
+
+CloudStream uses priority profiles to automatically select the best available source when playback starts. Three built-in profiles apply automatically based on context: **Wi-Fi**, **Mobile data**, and **Download**. You can configure the preferred quality tier and source priority order for each profile in **Settings → Player → Quality profiles**.
+
+When a source exceeds the auto-skip priority threshold, CloudStream stops loading additional sources and begins playback with what it has.
+
+## Subtitles
+
+The player supports multiple simultaneous subtitle tracks. Subtitle files embedded in the video container (SRT, ASS/SSA, WebVTT) are loaded automatically alongside any external subtitle URLs provided by the extension.
+
+### Selecting a subtitle track
+
+Tap the **subtitles** button in the player overlay to open the subtitle picker. Available tracks are listed by language name (resolved from IETF BCP 47 tags). Tap a track to activate it. Select **None** to hide subtitles.
+
+### Customizing subtitle appearance
+
+Open **Settings → Player → Subtitle style** to change:
+
+- **Font size** — scale relative to screen size
+- **Text color** — foreground color of subtitle text
+- **Background color** — box color behind the text
+- **Outline** — stroke style and color
+- **Position** — vertical offset from the bottom of the screen
+- **Encoding** — force a specific character encoding if subtitles appear garbled
+
+You can also apply a **subtitle delay offset** from within the player overlay to shift subtitles forward or backward in real time.
+
+### Online subtitle search
+
+While a video is playing, tap the **subtitle search** button to search OpenSubtitles, Addic7ed, or other configured subtitle providers for matching subtitle files. Downloading requires an account linked in **Settings → Account**.
+
+## Audio tracks
+
+When a stream contains multiple audio tracks (e.g. dubbed and original language), tap the **audio** button in the player overlay to open the track picker. Select any listed track to switch immediately.
+
+CloudStream remembers your preferred audio language across sessions. Set it in **Settings → Player → Preferred audio language** to have matching tracks selected automatically.
+
+## Chromecast
+
+You can cast the currently playing video to a Chromecast or Google TV device on the same local network.
+
+<Steps>
+  <Step title="Start playback">
+    Open a video in the player as normal.
+  </Step>
+  <Step title="Tap the cast icon">
+    The cast icon appears in the player overlay when a compatible device is detected on your network. Tap it to open the device picker.
+  </Step>
+  <Step title="Select your device">
+    Tap your Chromecast or Google TV. CloudStream sends the stream URL directly to the device.
+  </Step>
+</Steps>
+
+<Warning>
+  Not all sources can be cast. Extensions can set `hasChromecastSupport = false` on any provider to disable casting for that source. Streams protected with DRM (Widevine, PlayReady, ClearKey) may also fail to cast, since the Chromecast must independently acquire a license for the content. If casting fails, play the content locally instead.
+</Warning>
+
+## Picture-in-picture
+
+On Android 8.0 and later, CloudStream supports picture-in-picture (PiP) mode. When you leave the player by pressing the home button, the video shrinks into a floating overlay. PiP must be enabled for CloudStream in your device's app settings (**System Settings → Apps → CloudStream → Picture-in-picture**).
+
+## Keyboard and remote shortcuts
+
+On Android TV, emulators, or devices with a physical keyboard, the following key mappings apply:
+
+| Key                    | Action                               |
+| ---------------------- | ------------------------------------ |
+| D-pad center / Space   | Play / pause                         |
+| D-pad left             | Seek backward (TV seek time)         |
+| D-pad right            | Seek forward (TV seek time)          |
+| D-pad up / D-pad down  | Adjust volume                        |
+| Back                   | Exit player                          |
+| Menu                   | Toggle player overlay                |
+
+<Note>
+  On Android TV, the seek increment when the overlay is hidden is longer than when it is visible, giving you coarser control when navigating by remote.
+</Note>

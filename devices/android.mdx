@@ -1,0 +1,54 @@
+---
+title: "Android phone & tablet"
+description: "How to install and set up CloudStream on an Android phone or tablet."
+---
+
+CloudStream is distributed as an APK file and must be sideloaded — it is not available on the Google Play Store. The steps below walk you through enabling unknown app installs, downloading the APK, and getting started.
+
+## Requirements
+
+- **Android 6.0 (Marshmallow) or later** — CloudStream requires API level 23 (Android 6.0) as its minimum supported version.
+- **~50 MB free storage** for the app itself. If you plan to download content for offline playback, set aside additional space accordingly.
+- An active internet connection for streaming.
+
+## Install CloudStream
+
+<Steps>
+  <Step title="Allow installation from unknown sources">
+    Because CloudStream is not on the Play Store, you need to permit your device to install APKs from outside official app stores. The exact location of this setting depends on your Android version:
+
+    - **Android 8.0 and later:** The permission is granted per app. When you try to open the APK, Android will prompt you to allow the browser or file manager you used to download it to install unknown apps. You can also go to **Settings → Apps → Special app access → Install unknown apps** and enable it for your browser or file manager in advance.
+    - **Android 7.1 and earlier:** Go to **Settings → Security** (or **Settings → Lock screen and security**) and toggle **Unknown sources** on.
+
+    <Warning>
+      Only grant install permissions to apps you trust, and consider disabling the permission again after installation.
+    </Warning>
+  </Step>
+  <Step title="Download the APK">
+    Visit the [CloudStream GitHub Releases page](https://github.com/recloudstream/cloudstream/releases) and download the latest stable APK. If you are browsing on your phone, tap the APK file to download it directly; if you are on a computer, transfer the file to your device afterwards.
+
+    <Tip>
+      Choose the **stable** release unless you specifically want to try new features early — prerelease builds may contain bugs.
+    </Tip>
+  </Step>
+  <Step title="Open and install the APK">
+    Open the downloaded APK file from your notifications bar or from your **Downloads** folder using a file manager. Follow the on-screen prompts to complete the installation.
+  </Step>
+  <Step title="Launch the app">
+    Open CloudStream from your app drawer. On first launch, the setup wizard will guide you through selecting your preferred **content languages** and **content types** (movies, TV shows, anime, etc.). These preferences filter which extensions are recommended to you.
+  </Step>
+  <Step title="Install extensions">
+    CloudStream has no built-in content sources. To watch anything, you must install at least one extension. Go to **Settings → Extensions**, add a community repository URL, and install the extensions you want.
+  </Step>
+</Steps>
+
+## Staying up to date
+
+CloudStream does not update through the Play Store. To keep it current:
+
+- Open **Settings → Updates** inside the app to check for and install new versions directly.
+- Alternatively, revisit the [GitHub Releases page](https://github.com/recloudstream/cloudstream/releases) and download the latest APK whenever a new version is published.
+
+<Note>
+  Prerelease builds have an `-PRE` suffix in the version name and use a separate app ID, so they can be installed alongside the stable release.
+</Note>

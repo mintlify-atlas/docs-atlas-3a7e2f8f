@@ -1,0 +1,113 @@
+---
+title: "Extensions"
+description: "Add streaming sources to CloudStream by installing extensions from repositories."
+---
+
+Extensions are `.cs3` plugin files that add streaming sources to CloudStream. Without extensions, the app has no content providers — each extension you install teaches CloudStream how to search and stream from a specific site. Extensions are loaded at runtime via Android's class loader, so you can add or remove them without reinstalling the app.
+
+<Warning>
+  Only install extensions from sources you trust. CloudStream does not review, endorse, or verify the content or behavior of third-party extensions. A malicious extension could expose you to harmful content or network requests.
+</Warning>
+
+## Repositories
+
+A repository is a JSON manifest hosted at a URL that lists available extensions. Each repository points to one or more plugin lists, where each entry describes a `.cs3` file with metadata such as its name, version, language, and supported content types.
+
+The repository manifest contains:
+
+| Field             | Description                                                   |
+| ----------------- | ------------------------------------------------------------- |
+| `name`            | Display name shown in the Extensions screen                   |
+| `description`     | Optional description of the repository                        |
+| `manifestVersion` | Format version of the manifest (currently `1`)                |
+| `pluginLists`     | List of URLs pointing to JSON arrays of `SitePlugin` entries  |
+
+Each plugin entry (`SitePlugin`) exposes the following fields:
+
+| Field          | Description                                                                 |
+| -------------- | --------------------------------------------------------------------------- |
+| `name`         | Display name shown in the plugin list                                       |
+| `internalName` | Stable internal identifier (separate from `name` to allow renames)         |
+| `description`  | Optional short description of the source                                    |
+| `version`      | Integer version; any increment triggers an automatic update prompt          |
+| `status`       | Availability code (see below)                                               |
+| `tvTypes`      | List of content types the extension provides (e.g. `Movie`, `TvSeries`)    |
+| `language`     | IETF BCP 47 language tag such as `en`, `zh-TW`, or `universal`             |
+| `authors`      | List of author names                                                        |
+| `fileSize`     | Size of the `.cs3` file in bytes (auto-generated)                          |
+
+### Extension status codes
+
+The `status` field on each plugin entry is set remotely by the repository maintainer to signal the current health of the source:
+
+| Code | Meaning     | Description                                           |
+| ---- | ----------- | ----------------------------------------------------- |
+| `0`  | Down        | The source is not functional; avoid using it          |
+| `1`  | OK          | The source is working normally                        |
+| `2`  | Slow        | The source is operational but experiencing high load  |
+| `3`  | Beta only   | The source is experimental or under active testing    |
+
+## Adding a repository
+
+<Steps>
+  <Step title="Open Settings">
+    Tap the **Settings** icon in the bottom navigation bar or side rail.
+  </Step>
+  <Step title="Navigate to Extensions">
+    Select **Extensions** from the settings list.
+  </Step>
+  <Step title="Add a repository">
+    Tap the **+** button (or the add button on Android TV) to open the **Add repository** dialog.
+
+    Paste the repository URL into the **Repository URL** field. CloudStream accepts the following URL formats:
+
+    - Standard HTTPS URLs: `https://example.com/repo.json`
+    - `cloudstreamrepo://` deep links
+    - `https://cs.repo/?...` short links
+    - Short alphanumeric codes that resolve via `cutt.ly`
+
+    Optionally provide a custom **Repository name**. If left blank, the name from the manifest is used.
+  </Step>
+  <Step title="Confirm">
+    Tap **Apply**. CloudStream fetches the manifest, validates it, and adds the repository to your list. If the manifest is unreachable or invalid, an error toast appears and nothing is saved.
+  </Step>
+</Steps>
+
+<Tip>
+  If you copy a repository URL or a shareable `<name> : <url>` string to your clipboard before opening the dialog, CloudStream will pre-fill the fields automatically.
+</Tip>
+
+## Installing, updating, and removing extensions
+
+### Installing an extension
+
+<Steps>
+  <Step title="Open the repository">
+    On the **Extensions** screen, tap a repository to see its list of available extensions.
+  </Step>
+  <Step title="Install">
+    Tap the download icon next to any extension to install it. CloudStream downloads the `.cs3` file to its internal `Extensions/` directory and loads it immediately — no restart required.
+  </Step>
+</Steps>
+
+### Updating an extension
+
+When a repository maintainer increments an extension's `version` field, CloudStream detects the change and marks the extension as having an available update. You can update individual extensions from the extension list, or update all at once using the **Update all** option in the repository view.
+
+Auto-updates are triggered by version number changes only. Downgrading is not supported through the UI.
+
+### Removing an extension
+
+Long-press (or select) an extension in the list and choose **Remove**. The `.cs3` file is deleted and the provider is unloaded from the active API list immediately.
+
+### Removing a repository
+
+On the **Extensions** screen, long-press a repository entry and confirm deletion. Removing a repository also deletes all extensions that were installed from it and unloads their providers.
+
+## Extension storage
+
+Installed extensions are stored in the app's private `files/Extensions/` directory, organized by a sanitized form of the repository URL. Because this is internal storage, the files are removed if you uninstall CloudStream.
+
+<Note>
+  CloudStream does not verify the content served by extensions. What an extension displays, streams, or requests is entirely determined by its author. Use extensions only from maintainers you trust.
+</Note>

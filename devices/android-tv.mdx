@@ -1,0 +1,84 @@
+---
+title: "Android TV & Fire TV"
+description: "How to sideload and use CloudStream on Android TV, Google TV, and Amazon Fire TV or Fire Stick."
+---
+
+CloudStream includes a TV-optimized interface designed for D-pad and remote navigation, making it well suited for Android TV, Google TV, and Amazon Fire TV devices.
+
+## Supported platforms
+
+<CardGroup cols={2}>
+  <Card title="Android TV / Google TV" icon="tv">
+    Sideload via ADB or a file manager app. Includes NVIDIA Shield, Chromecast with Google TV, Sony and Philips smart TVs running Android TV.
+  </Card>
+  <Card title="Amazon Fire TV / Fire Stick" icon="flame">
+    Sideload using the Downloader app. Includes Fire TV Stick 4K, Fire TV Cube, and all Fire Stick models.
+  </Card>
+</CardGroup>
+
+## Remote navigation tips
+
+- Use the **D-pad** (up/down/left/right) to navigate between items and the **Select / OK** button to open them.
+- Press the **Back** button to go to the previous screen. A long press on **Back** will typically exit the current section.
+- **Long-press Select** on a title card to open a context menu with options such as bookmarking or marking as watched.
+
+---
+
+## Installation on Fire TV / Fire Stick
+
+<Steps>
+  <Step title="Enable apps from unknown sources">
+    On your Fire TV remote, navigate to **Settings → My Fire TV → Developer Options**. Select **Apps from Unknown Sources** and set it to **On**.
+
+    <Warning>
+      Re-disable this setting after installation if you prefer not to leave it enabled permanently.
+    </Warning>
+  </Step>
+  <Step title="Install the Downloader app">
+    Go to the Fire TV **Home** screen, open the **Search** function, and search for **Downloader** (by AFTVnews). Install it — it is free and available in the Amazon Appstore.
+  </Step>
+  <Step title="Open Downloader and enter the APK URL">
+    Launch **Downloader** and select the **Browser** or **URL** input box. Enter the direct URL to the CloudStream APK from the [GitHub Releases page](https://github.com/recloudstream/cloudstream/releases). Copy the URL on another device first if needed.
+  </Step>
+  <Step title="Download and install">
+    Downloader will fetch and save the APK. When the download finishes, select **Install** on the prompt that appears. Once installed, you can choose to **Delete** the APK to free up space.
+  </Step>
+  <Step title="Launch CloudStream">
+    Find CloudStream in your **Apps** list or say "Open CloudStream" to Alexa. Complete the first-run setup by selecting your preferred content languages and types, then install extensions via **Settings → Extensions**.
+  </Step>
+</Steps>
+
+---
+
+## Installation on Android TV / Google TV
+
+<Steps>
+  <Step title="Option A — ADB from a computer">
+    1. On your Android TV, go to **Settings → Device Preferences → About** and press **Build** several times to enable **Developer options**.
+    2. In **Developer options**, enable **USB debugging** (and **Network debugging** if sideloading over Wi-Fi).
+    3. On your computer, download the CloudStream APK from [GitHub Releases](https://github.com/recloudstream/cloudstream/releases).
+    4. Run the following command, replacing the IP address and path as appropriate:
+
+    ```bash
+    adb connect 192.168.1.x:5555
+    adb install cloudstream.apk
+    ```
+
+    <Tip>
+      If you are connecting over Wi-Fi, make sure your computer and TV are on the same network.
+    </Tip>
+  </Step>
+  <Step title="Option B — Send Files to TV app">
+    1. Install the **Send Files to TV** app on both your Android TV and your Android phone from the Google Play Store.
+    2. Download the CloudStream APK to your phone.
+    3. Open **Send Files to TV** on your phone, locate the APK file, and send it to your TV.
+    4. On the TV, open **Send Files to TV**, accept the incoming file, and then open the received APK to install it.
+  </Step>
+  <Step title="Complete setup">
+    Launch CloudStream from your app drawer or home screen. Go through the setup wizard and then add extensions from **Settings → Extensions**.
+  </Step>
+</Steps>
+
+<Note>
+  If a TV-specific APK variant is listed on the GitHub Releases page, prefer that build — it is optimized for the TV interface and leanback launcher.
+</Note>

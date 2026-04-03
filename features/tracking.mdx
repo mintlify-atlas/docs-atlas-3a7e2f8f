@@ -1,0 +1,106 @@
+---
+title: "Watch tracking"
+description: "Sync your watch progress, episode counts, and scores with AniList, MyAnimeList, Kitsu, Simkl, or a local list."
+---
+
+CloudStream can update external tracking services as you watch, keeping your lists in sync without switching apps. Tracking is optional — each service is independent, and you can enable or disable any of them at any time.
+
+## Supported services
+
+<CardGroup cols={2}>
+  <Card title="AniList" icon="chart-line">
+    Anime and manga tracking via OAuth2. Syncs watch status, episode progress, and scores. Uses the AniList GraphQL API.
+  </Card>
+  <Card title="MyAnimeList" icon="list">
+    Anime tracking via OAuth2 (MAL API v2). Syncs watch status and episode count. Supports up to 25 results per search query.
+  </Card>
+  <Card title="Kitsu" icon="tv">
+    Anime tracking using Kitsu's JSON:API. Syncs watch status, episode progress, and scores via email/password login.
+  </Card>
+  <Card title="Simkl" icon="play">
+    Anime, movie, and TV series tracking via OAuth2 pin-based flow. Syncs watch status, episode progress, and scores across all content types.
+  </Card>
+  <Card title="Local list" icon="database">
+    A fully offline watchlist stored on your device. No account required. Supports watch states (Watching, Completed, On-hold, Dropped, Plan to watch) and favorites.
+  </Card>
+</CardGroup>
+
+## Linking an account
+
+<Steps>
+  <Step title="Open Settings">
+    Tap **Settings** in the bottom navigation bar or side rail.
+  </Step>
+  <Step title="Go to Account">
+    Select **Account** from the settings list.
+  </Step>
+  <Step title="Choose a service">
+    Tap the service you want to link: **AniList**, **MAL**, **Kitsu**, or **Simkl**.
+  </Step>
+  <Step title="Log in">
+    - **AniList** and **MAL** open an OAuth2 authorization page in your browser. Approve access and you are redirected back to CloudStream automatically.
+    - **Simkl** uses a PIN-based flow: a PIN is displayed in the app, and you enter it on the Simkl website to authorize.
+    - **Kitsu** prompts for your email address and password directly in the app.
+  </Step>
+  <Step title="Confirm">
+    Once authorized, your account name and avatar appear on the Account screen. The service is now active.
+  </Step>
+</Steps>
+
+<Note>
+  **Local list** does not require any login. It is always available and enabled by default. Your local watchlist is stored in CloudStream's app storage and is not synchronized to any external service.
+</Note>
+
+## What gets tracked
+
+When you finish watching an episode or a movie, CloudStream can update any linked tracking services with:
+
+- **Watch status** — Watching, Completed, On-hold, Dropped, or Plan to watch
+- **Episode progress** — the number of episodes you have watched
+- **Score** — your rating for the title, if you set one within the app
+
+CloudStream matches the content you are watching to the tracking service using IDs embedded in the extension's metadata (AniList ID, MAL ID, Simkl ID, etc.). Matching is automatic when the extension provides these IDs; no manual search is required.
+
+## Managing your lists
+
+You can view and edit your tracked titles in the **Library** tab. Each linked service appears as a separate section. Within each section you can:
+
+- Change the watch status of a title
+- Update the episode count manually
+- Remove a title from the list
+
+Changes made in the Library tab are pushed to the external service immediately if you are online.
+
+## Disabling tracking for a service
+
+To stop syncing with a service without losing your data on that service, unlink the account:
+
+<Steps>
+  <Step title="Open Settings → Account">
+    Navigate to **Settings** → **Account**.
+  </Step>
+  <Step title="Select the service">
+    Tap the service you want to disconnect.
+  </Step>
+  <Step title="Log out">
+    Tap **Log out** or **Remove account**. CloudStream removes the stored token. Your data on the external service is not affected.
+  </Step>
+</Steps>
+
+## Local list
+
+The **Local** list (`LocalList`) is a built-in offline alternative to external tracking. It stores your watch states and favorites on-device using CloudStream's internal data store. It is available even without an internet connection and requires no account.
+
+Watch states supported by the Local list:
+
+| State         | Description                                        |
+| ------------- | -------------------------------------------------- |
+| Watching      | Currently in progress                              |
+| Completed     | Finished all available episodes or the movie       |
+| On-hold       | Paused indefinitely                                |
+| Dropped       | Stopped watching and not planning to resume        |
+| Plan to watch | Added to your queue but not yet started            |
+
+<Info>
+  The Local list also tracks **favorites** and **subscriptions** separately from watch states, giving you additional ways to organize your content without an external account.
+</Info>

@@ -1,0 +1,106 @@
+---
+title: "Linux"
+description: "How to run CloudStream on Linux using Waydroid or an Android-x86 virtual machine."
+---
+
+CloudStream is an Android application and does not have a native Linux build. The recommended way to run it on Linux is **Waydroid**, which provides near-native Android performance by running a full Android system image in a container alongside your Linux kernel. An **Android-x86 virtual machine** is an alternative for setups where Waydroid is not suitable.
+
+---
+
+## Option 1 — Waydroid (recommended)
+
+Waydroid runs Android inside a lightweight container using Linux namespaces. Because it shares your existing kernel rather than emulating hardware, it generally offers better performance than a traditional VM.
+
+### Prerequisites
+
+- A Linux kernel with **binder** support. Most mainstream distributions shipping kernel 5.8 or later have this built in. Some distributions may require installing an additional kernel module (e.g., `binder_linux` via DKMS).
+- A **Wayland** compositor (e.g., GNOME on Wayland, KDE Plasma on Wayland, Weston). Waydroid does not run under an X11-only session without additional configuration.
+
+<Steps>
+  <Step title="Install Waydroid">
+    Follow the installation instructions for your specific distribution at [waydroid.xyz](https://waydroid.xyz). Most major distributions (Ubuntu, Fedora, Arch Linux, Debian, openSUSE) have documented steps or an official package.
+
+    For example, on Ubuntu:
+
+    ```bash
+    sudo apt install curl
+    curl -s https://repo.waydro.id | sudo bash
+    sudo apt install waydroid
+    ```
+  </Step>
+  <Step title="Initialize Waydroid with an Android image">
+    Run the initialization command to download the Android system image:
+
+    ```bash
+    sudo waydroid init
+    ```
+
+    This downloads a LineageOS-based Android image. You can also pass `-s GAPPS` to include Google Play Services, though it is not required for CloudStream.
+  </Step>
+  <Step title="Start the Waydroid session">
+    ```bash
+    waydroid session start
+    ```
+
+    In a separate terminal (or after the session is confirmed running), launch the Waydroid UI:
+
+    ```bash
+    waydroid show-full-ui
+    ```
+  </Step>
+  <Step title="Download the CloudStream APK">
+    On your Linux desktop, open a browser and go to the [CloudStream GitHub Releases page](https://github.com/recloudstream/cloudstream/releases). Download the latest stable APK to your local machine.
+  </Step>
+  <Step title="Install the APK via ADB">
+    With the Waydroid session running, install the APK using ADB:
+
+    ```bash
+    adb connect 192.168.240.112:5555
+    adb install cloudstream.apk
+    ```
+
+    <Tip>
+      The Waydroid ADB IP address is typically `192.168.240.112`. If that does not work, run `waydroid status` to find the correct IP, or check the Waydroid documentation.
+    </Tip>
+  </Step>
+  <Step title="Launch CloudStream">
+    Find CloudStream in the Waydroid app drawer. Complete the first-run setup and install extensions via **Settings → Extensions**.
+  </Step>
+</Steps>
+
+<Note>
+  If your kernel does not include binder support out of the box, check your distribution's wiki or the Waydroid documentation for instructions on loading the `binder_linux` module via DKMS or a kernel patch.
+</Note>
+
+---
+
+## Option 2 — Android-x86 in a virtual machine
+
+If Waydroid is not an option (e.g., you use an X11-only session or an unsupported kernel), you can run CloudStream inside an Android-x86 virtual machine using **VirtualBox** or **QEMU/KVM**.
+
+<Steps>
+  <Step title="Download an Android-x86 ISO">
+    Go to [android-x86.org](https://www.android-x86.org) and download the latest stable ISO image.
+  </Step>
+  <Step title="Create a virtual machine">
+    In VirtualBox or virt-manager (QEMU/KVM), create a new VM with:
+    - **Type:** Linux, **Version:** Other Linux (64-bit)
+    - At least **2 GB RAM** and **8 GB disk**
+    - Boot from the downloaded ISO and install Android-x86 to the virtual disk.
+  </Step>
+  <Step title="Enable ADB in Android-x86">
+    Inside the Android-x86 VM, go to **Settings → About tablet** and tap **Build number** seven times to enable **Developer options**. Then enable **USB debugging** in **Developer options**.
+  </Step>
+  <Step title="Install the CloudStream APK">
+    From your Linux host, connect ADB to the VM (check the VM's IP in Android Settings → Wi-Fi) and install the APK:
+
+    ```bash
+    adb connect <vm-ip>:5555
+    adb install cloudstream.apk
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  Waydroid is almost always the better choice on Linux — it is faster, integrates with your desktop, and requires no separate VM setup.
+</Tip>

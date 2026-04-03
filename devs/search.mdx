@@ -1,0 +1,360 @@
+---
+title: "Search and home page"
+description: "How to implement search results and homepage sections using SearchResponse types."
+---
+
+`search()`, `quickSearch()`, and `getMainPage()` all return lists of `SearchResponse` objects. Each `SearchResponse` represents a single card in the UI — a title, a poster, and a URL that can be opened with `load()`.
+
+---
+
+## SearchResponse types
+
+Use the builder functions matching your content type. Never construct the data classes directly.
+
+### `MovieSearchResponse`
+
+For movies and anime movies.
+
+```kotlin
+fun MainAPI.newMovieSearchResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.Movie,
+    fix: Boolean = true,
+    initializer: MovieSearchResponse.() -> Unit = {},
+): MovieSearchResponse
+```
+
+```kotlin example
+newMovieSearchResponse(
+    name = el.selectFirst(".title")!!.text(),
+    url = el.selectFirst("a")!!.attr("href"),
+    type = TvType.Movie,
+) {
+    posterUrl = fixUrlNull(el.selectFirst("img")?.attr("src"))
+    year = el.selectFirst(".year")?.text()?.toIntOrNull()
+    quality = getQualityFromString(el.selectFirst(".quality")?.text())
+}
+```
+
+### `TvSeriesSearchResponse`
+
+For episodic series, cartoons, and Asian dramas.
+
+```kotlin
+fun MainAPI.newTvSeriesSearchResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.TvSeries,
+    fix: Boolean = true,
+    initializer: TvSeriesSearchResponse.() -> Unit = {},
+): TvSeriesSearchResponse
+```
+
+```kotlin example
+newTvSeriesSearchResponse(
+    name = el.text(),
+    url = el.attr("href"),
+    type = TvType.TvSeries,
+) {
+    posterUrl = fixUrlNull(el.nextElementSibling()?.attr("src"))
+    year = el.attr("data-year").toIntOrNull()
+}
+```
+
+The `TvSeriesSearchResponse` also has an `episodes: Int?` field for showing a total episode count on the card.
+
+### `AnimeSearchResponse`
+
+For anime and OVAs. Supports displaying dubbed and/or subbed episode counts on the card.
+
+```kotlin
+fun MainAPI.newAnimeSearchResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.Anime,
+    fix: Boolean = true,
+    initializer: AnimeSearchResponse.() -> Unit = {},
+): AnimeSearchResponse
+```
+
+Use `addDubStatus()` inside the initializer to declare which versions are available:
+
+```kotlin example
+newAnimeSearchResponse(
+    name = el.selectFirst(".title")!!.text(),
+    url = el.selectFirst("a")!!.attr("href"),
+    type = TvType.Anime,
+) {
+    posterUrl = fixUrlNull(el.selectFirst("img")?.attr("src"))
+
+    // Indicate dubbed and/or subbed availability
+    addDubStatus(DubStatus.Subbed, episodes = 24)
+    addDubStatus(DubStatus.Dubbed, episodes = 24)
+
+    // Or use the boolean convenience form
+    addDubStatus(dubExist = true, subExist = true, dubEpisodes = 24, subEpisodes = 24)
+
+    // Or parse from a "(Dub)"/"(Sub)" suffix
+    addDubStatus(el.text())  // matches "(dub)" or "(sub)" case-insensitively
+}
+```
+
+### `TorrentSearchResponse`
+
+For torrent-indexed content.
+
+```kotlin
+fun MainAPI.newTorrentSearchResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.Torrent,
+    fix: Boolean = true,
+    initializer: TorrentSearchResponse.() -> Unit = {},
+): TorrentSearchResponse
+```
+
+### `LiveSearchResponse`
+
+For live stream channels.
+
+```kotlin
+fun MainAPI.newLiveSearchResponse(
+    name: String,
+    url: String,
+    type: TvType = TvType.Live,
+    fix: Boolean = true,
+    initializer: LiveSearchResponse.() -> Unit = {},
+): LiveSearchResponse
+```
+
+The `LiveSearchResponse` has a `lang: String?` field to indicate the stream's language.
+
+---
+
+## Common SearchResponse fields
+
+All response types implement the `SearchResponse` interface. These fields are available in every initializer:
+
+<ResponseField name="name" type="String" required>
+  The title displayed on the card. Set as the first argument to the builder.
+</ResponseField>
+
+<ResponseField name="url" type="String" required>
+  The URL passed to `load()` when the user taps the card. The builder calls `fixUrl()` on this automatically when `fix = true`.
+</ResponseField>
+
+<ResponseField name="apiName" type="String" required>
+  Set automatically to your provider's name. Do not override.
+</ResponseField>
+
+<ResponseField name="type" type="TvType?">
+  The content type. Set as the third argument to the builder.
+</ResponseField>
+
+<ResponseField name="posterUrl" type="String?">
+  URL for the card's poster image.
+
+  ```kotlin
+  posterUrl = fixUrlNull(el.selectFirst("img")?.attr("src"))
+  ```
+</ResponseField>
+
+<ResponseField name="posterHeaders" type="Map&lt;String, String&gt;?">
+  HTTP headers to include when fetching the poster image, for providers that hotlink-protect images.
+
+  ```kotlin
+  addPoster(url = posterUrl, headers = mapOf("Referer" to mainUrl))
+  ```
+</ResponseField>
+
+<ResponseField name="year" type="Int?">
+  Release or start year, displayed below the title on the card.
+</ResponseField>
+
+<ResponseField name="quality" type="SearchQuality?">
+  The release quality badge shown on the card. Use `getQualityFromString()` to parse a quality label from the site:
+
+  ```kotlin
+  quality = getQualityFromString(el.selectFirst(".quality")?.text())
+  // or assign directly:
+  quality = SearchQuality.HD
+  ```
+</ResponseField>
+
+<ResponseField name="score" type="Score?">
+  A rating score displayed on the card. See [Load responses](/devs/load-response#common-fields) for `Score` factory methods.
+</ResponseField>
+
+---
+
+## SearchQuality
+
+The `SearchQuality` enum represents common video release quality labels. Use `getQualityFromString(string)` to parse a label from the site automatically — it handles common aliases like `"HDCAM"`, `"HDTS"`, `"BluRay"`, `"DVDRIP"`, `"WebDL"`, `"4K"`, etc.
+
+| Value | Typical label |
+|---|---|
+| `SearchQuality.Cam` | CAM |
+| `SearchQuality.CamRip` | CamRip, RIP |
+| `SearchQuality.HdCam` | HDCAM, HDTS, HDTC |
+| `SearchQuality.Telesync` | TS, Telesync |
+| `SearchQuality.WorkPrint` | WP, WorkPrint |
+| `SearchQuality.Telecine` | TC, Telecine |
+| `SearchQuality.HQ` | HQ, HighQuality |
+| `SearchQuality.HD` | HD, HDRip, HDTV, FHD |
+| `SearchQuality.HDR` | HDR |
+| `SearchQuality.BlueRay` | BluRay, Blu, BR |
+| `SearchQuality.DVD` | DVD, DVDRip, DVDScr |
+| `SearchQuality.SD` | SD, Standard |
+| `SearchQuality.FourK` | 4K |
+| `SearchQuality.UHD` | UHD |
+| `SearchQuality.SDR` | SDR |
+| `SearchQuality.WebRip` | WebRip, WebDL, Web |
+
+```kotlin usage
+quality = getQualityFromString("BluRay")   // → SearchQuality.BlueRay
+quality = getQualityFromString("4K")       // → SearchQuality.FourK
+quality = getQualityFromString(null)       // → null
+```
+
+---
+
+## Homepage sections
+
+### Defining sections with `mainPageOf`
+
+Declare your homepage sections as a property on your provider class:
+
+```kotlin
+override val mainPage = mainPageOf(
+    "$mainUrl/movies" to "Movies",
+    "$mainUrl/series" to "TV Series",
+    "$mainUrl/anime" to "Anime",
+    "$mainUrl/trending" to "Trending now",
+)
+```
+
+Each string pair maps a **data URL** to a **section name**. The data URL is what CloudStream passes to `getMainPage()` as `request.data`.
+
+For landscape card layout, use the three-argument `mainPage()` function:
+
+```kotlin
+override val mainPage = mainPageOf(
+    mainPage("$mainUrl/featured", "Featured", horizontalImages = true),
+    mainPage("$mainUrl/movies", "Movies"),
+)
+```
+
+### Implementing `getMainPage`
+
+`getMainPage` receives the section data and the current page number, and returns a `HomePageResponse`.
+
+```kotlin complete homepage implementation
+override val mainPage = mainPageOf(
+    "$mainUrl/movies?sort=trending" to "Trending movies",
+    "$mainUrl/series?sort=new" to "New series",
+    "$mainUrl/anime" to "Anime",
+)
+
+override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+    // request.data is the URL you defined, e.g. "$mainUrl/movies?sort=trending"
+    val doc = app.get("${request.data}&page=$page").document
+
+    val items = doc.select(".item-card").mapNotNull { el ->
+        val name = el.selectFirst(".title")?.text() ?: return@mapNotNull null
+        val href = el.selectFirst("a")?.attr("href") ?: return@mapNotNull null
+        val poster = el.selectFirst("img")?.attr("data-src")
+        val typeAttr = el.attr("data-type")
+
+        if (typeAttr == "series") {
+            newTvSeriesSearchResponse(name, href, TvType.TvSeries) {
+                posterUrl = fixUrlNull(poster)
+            }
+        } else {
+            newMovieSearchResponse(name, href, TvType.Movie) {
+                posterUrl = fixUrlNull(poster)
+            }
+        }
+    }
+
+    // hasNext controls whether CloudStream tries to load the next page on scroll
+    return newHomePageResponse(request, items, hasNext = items.isNotEmpty())
+}
+```
+
+### `newHomePageResponse` variants
+
+```kotlin
+// Most common — wraps a list under the request's section name
+newHomePageResponse(request, items, hasNext = items.isNotEmpty())
+
+// Named section — for when you build the section name yourself
+newHomePageResponse(name = "Featured", list = items, hasNext = false)
+
+// Multiple sections in one response
+newHomePageResponse(listOf(
+    HomePageList("Action", actionItems),
+    HomePageList("Comedy", comedyItems, isHorizontalImages = true),
+))
+```
+
+---
+
+## Implementing search
+
+### Basic search
+
+Override `search(query)` for single-page results:
+
+```kotlin
+override suspend fun search(query: String): List<SearchResponse>? {
+    val doc = app.get(
+        "$mainUrl/search",
+        params = mapOf("q" to query)
+    ).document
+
+    return doc.select(".search-item").mapNotNull { el ->
+        val name = el.selectFirst(".title")?.text() ?: return@mapNotNull null
+        val href = el.selectFirst("a")?.attr("href") ?: return@mapNotNull null
+        val poster = el.selectFirst("img")?.attr("src")
+        val isAnime = el.hasClass("anime")
+
+        if (isAnime) {
+            newAnimeSearchResponse(name, href, TvType.Anime) {
+                posterUrl = fixUrlNull(poster)
+            }
+        } else {
+            newMovieSearchResponse(name, href, TvType.Movie) {
+                posterUrl = fixUrlNull(poster)
+                quality = getQualityFromString(el.selectFirst(".badge")?.text())
+            }
+        }
+    }
+}
+```
+
+### Paginated search
+
+Override `search(query, page)` when the site supports multi-page search results. The `page` parameter starts at `1`.
+
+```kotlin
+override suspend fun search(query: String, page: Int): SearchResponseList? {
+    val json = app.get(
+        "$mainUrl/api/search",
+        params = mapOf("q" to query, "page" to page.toString())
+    ).parsedSafe<SearchApiResponse>() ?: return null
+
+    val items = json.results.map { item ->
+        newMovieSearchResponse(item.title, item.url, TvType.Movie) {
+            posterUrl = item.poster
+            year = item.year
+        }
+    }
+
+    return newSearchResponseList(items, hasNext = json.hasNextPage)
+}
+```
+
+<Note>
+  If you only override `search(query)`, CloudStream will wrap its result in a `SearchResponseList` automatically with `hasNext = false`. You only need to override the paginated version when your site genuinely supports pagination.
+</Note>

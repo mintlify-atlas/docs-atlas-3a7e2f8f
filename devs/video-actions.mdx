@@ -1,0 +1,231 @@
+---
+title: "Video click actions"
+description: "Add custom actions to the player options menu or episode long-press menu by registering a VideoClickAction from your plugin."
+---
+
+Video click actions are buttons that appear when a user interacts with a video or episode in the UI — for example, long-pressing an episode card or opening the player options menu. The app ships with built-in actions such as opening in VLC, copying the link to clipboard, and playing in a browser. Your extension can register additional actions with the same mechanism.
+
+<Tip>
+Video actions are most useful for sending a stream to a specific external tool — a torrent client, a custom player, a Fcast receiver, or anything else that accepts a URL.
+</Tip>
+
+## The VideoClickAction class
+
+`VideoClickAction` is an abstract class in `com.lagradost.cloudstream3.actions`. Every action you register must extend it and implement two abstract members:
+
+```kotlin VideoClickAction.kt (abridged)
+abstract class VideoClickAction {
+    /** The label shown in the UI for this action. */
+    abstract val name: UiText
+
+    /** If true, the user is asked to select a specific source before the action runs. */
+    open val oneSource: Boolean = false
+
+    /** If true, this action can be chosen as the default player in settings. */
+    open val isPlayer: Boolean = false
+
+    /** The link types this action can handle. Defaults to all types. */
+    open val sourceTypes: Set<ExtractorLinkType> = ExtractorLinkType.entries.toSet()
+
+    /**
+     * Set automatically when the action is registered via Plugin.registerVideoClickAction().
+     * You do not need to set this yourself.
+     */
+    var sourcePlugin: String? = null
+
+    /** Return true if this action should appear for the given context and episode. */
+    abstract fun shouldShow(context: Context?, video: ResultEpisode?): Boolean
+
+    /**
+     * Called when the user selects this action.
+     *
+     * @param context  The current activity.
+     * @param video    The episode or movie the user is acting on.
+     * @param result   The loaded links and subtitles for the episode.
+     * @param index    If oneSource is true, the index of the user-selected source. Otherwise null.
+     */
+    abstract suspend fun runAction(
+        context: Context?,
+        video: ResultEpisode,
+        result: LinkLoadingResult,
+        index: Int?
+    )
+}
+```
+
+The app wraps `shouldShow` and `runAction` in safe variants that catch exceptions and show a toast to the user. Your implementation does not need to guard against every possible error, but it should throw meaningful exceptions so error messages are useful.
+
+## Registering an action
+
+Call `registerVideoClickAction()` inside your plugin's `load()` method. The method sets `sourcePlugin` automatically to the plugin's file path, which is used to generate a stable unique ID for the action.
+
+```kotlin MyPlugin.kt
+@CloudstreamPlugin
+class MyPlugin : Plugin() {
+    override fun load(context: Context) {
+        registerMainAPI(MyProvider())
+        registerVideoClickAction(MySendToDeviceAction())
+    }
+}
+```
+
+<Note>
+`sourcePlugin` is set by `registerVideoClickAction()` — you do not need to assign it yourself. The unique ID for each action is derived from `sourcePlugin` and the action's class name, so renaming the class or moving it to a different package will create a new ID and lose any user preference tied to the old action.
+</Note>
+
+## Writing a basic action
+
+The simplest possible action copies a link to the clipboard:
+
+```kotlin CopyLinkAction.kt
+import android.content.Context
+import com.lagradost.cloudstream3.actions.VideoClickAction
+import com.lagradost.cloudstream3.ui.result.LinkLoadingResult
+import com.lagradost.cloudstream3.ui.result.ResultEpisode
+import com.lagradost.cloudstream3.utils.txt
+import com.lagradost.cloudstream3.utils.UIHelper.clipboardHelper
+
+class CopyLinkAction : VideoClickAction() {
+    override val name = txt("Copy link")
+
+    // Ask the user to pick a specific source before copying
+    override val oneSource = true
+
+    override fun shouldShow(context: Context?, video: ResultEpisode?) = true
+
+    override suspend fun runAction(
+        context: Context?,
+        video: ResultEpisode,
+        result: LinkLoadingResult,
+        index: Int?
+    ) {
+        val link = result.links.getOrNull(index ?: return) ?: return
+        clipboardHelper(txt(link.name), link.url)
+    }
+}
+```
+
+## Writing a player action
+
+If your action launches an external player app, extend `OpenInAppAction` instead of `VideoClickAction` directly. It handles the `shouldShow` check (returns `false` if the target app is not installed) and the intent lifecycle for you. You only need to implement `putExtra()` to configure the intent and `onResult()` to handle the return value.
+
+```kotlin MyPlayerAction.kt
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import androidx.core.net.toUri
+import com.lagradost.cloudstream3.actions.OpenInAppAction
+import com.lagradost.cloudstream3.actions.updateDurationAndPosition
+import com.lagradost.cloudstream3.ui.result.LinkLoadingResult
+import com.lagradost.cloudstream3.ui.result.ResultEpisode
+import com.lagradost.cloudstream3.utils.txt
+
+class MyPlayerAction : OpenInAppAction(
+    appName = txt("My Player"),
+    packageName = "com.example.myplayer"
+) {
+    override val oneSource = true
+
+    override suspend fun putExtra(
+        context: Context,
+        intent: Intent,
+        video: ResultEpisode,
+        result: LinkLoadingResult,
+        index: Int?
+    ) {
+        val link = result.links.getOrNull(index ?: return) ?: return
+        intent.setDataAndType(link.url.toUri(), "video/*")
+        intent.putExtra("title", video.name)
+    }
+
+    override fun onResult(activity: Activity, intent: Intent?) {
+        val position = intent?.getLongExtra("position", -1) ?: -1
+        val duration = intent?.getLongExtra("duration", -1) ?: -1
+        updateDurationAndPosition(position, duration)
+    }
+}
+```
+
+<Note>
+`OpenInAppAction` uses `launchResult()` internally, which goes through `activityResultLauncher`. This means any watch position returned by the external app via `onResult()` can be saved back to CloudStream automatically using `updateDurationAndPosition()`.
+</Note>
+
+## Controlling visibility
+
+`shouldShow()` lets you conditionally hide an action. Return `false` to exclude the action from the menu entirely for a given context.
+
+<AccordionGroup>
+  <Accordion title="Hide when a specific app is not installed">
+    `OpenInAppAction` does this for you by default — it calls `isAppInstalled(packageName)` internally. For a custom `VideoClickAction`, you can check manually:
+
+    ```kotlin
+    override fun shouldShow(context: Context?, video: ResultEpisode?): Boolean {
+        return context?.packageManager
+            ?.getLaunchIntentForPackage("com.example.myapp") != null
+    }
+    ```
+  </Accordion>
+  <Accordion title="Show only in settings (not on a video)">
+    Pass `video == null` to limit the action to the player settings screen only:
+
+    ```kotlin
+    override fun shouldShow(context: Context?, video: ResultEpisode?): Boolean {
+        return video == null
+    }
+    ```
+
+    This is the pattern used by the built-in `AlwaysAskAction`.
+  </Accordion>
+  <Accordion title="Filter by link type">
+    Override `sourceTypes` to restrict the action to specific link formats (direct, HLS, torrent, etc.):
+
+    ```kotlin
+    override val sourceTypes = setOf(
+        ExtractorLinkType.M3U8,
+        ExtractorLinkType.VIDEO,
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Launching UI from an action
+
+`runAction()` runs on a coroutine, not on the main thread. If you need to start an activity or show a dialog, use the helpers provided by `VideoClickAction`:
+
+| Helper | When to use |
+|---|---|
+| `launch(intent)` | Start an activity where you don't need to capture the result |
+| `launchResult(intent)` | Start an activity and receive its result (e.g. watch position) |
+| `uiThread { ... }` | Run any UI code on the main thread from within a coroutine |
+
+```kotlin
+override suspend fun runAction(
+    context: Context?,
+    video: ResultEpisode,
+    result: LinkLoadingResult,
+    index: Int?
+) {
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(result.links.first().url.toUri(), "video/*")
+    }
+    launch(intent)
+}
+```
+
+## Built-in actions reference
+
+The following actions are registered by the app itself and are always available:
+
+<AccordionGroup>
+  <Accordion title="Default actions">
+    - **Play in browser** — opens the URL in the device's default browser
+    - **Copy to clipboard** — copies the selected source URL (`oneSource = true`)
+    - **View M3U8** — displays the raw M3U8 playlist
+    - **Play mirror** — allows switching between sources within the player
+  </Accordion>
+  <Accordion title="External player packages">
+    VLC, MPV, MPV-Ex, Next Player, Just Player, Fcast, LibreTorrent, BiglyBT, and several forks. Each is an `OpenInAppAction` subclass that returns `false` from `shouldShow()` when the target app is not installed.
+  </Accordion>
+</AccordionGroup>
+
+Plugin-registered actions are appended after all built-in actions in `VideoClickActionHolder.allVideoClickActions`.

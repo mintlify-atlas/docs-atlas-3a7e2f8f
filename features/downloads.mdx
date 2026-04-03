@@ -1,0 +1,66 @@
+---
+title: "Downloads"
+description: "Download episodes and movies for offline playback directly from the CloudStream detail page."
+---
+
+CloudStream can save video files to your device for offline viewing. Downloads are managed through a built-in queue and are accessible from the **Downloads** tab at any time. Downloaded content is played back by the same ExoPlayer-based player used for streaming, so subtitle and audio track selection work the same way offline.
+
+<Warning>
+  Downloaded video files can be large. A single HD episode may range from several hundred megabytes to a few gigabytes depending on quality. Make sure you have enough free space before starting long download queues.
+</Warning>
+
+## Starting a download
+
+<Steps>
+  <Step title="Open the detail page">
+    Navigate to any show or movie by searching or browsing your installed extensions. Tap the title card to open its detail (info) page.
+  </Step>
+  <Step title="Find the episode or movie">
+    For series, scroll to the episode list. For movies, the download button is shown directly on the detail page.
+  </Step>
+  <Step title="Tap the download button">
+    Tap the **download** icon next to the episode or movie. CloudStream extracts the available stream links and queues the download.
+  </Step>
+</Steps>
+
+<Note>
+  Not every extension supports downloading. An extension can set `hasDownloadSupport = false` to indicate that its links are encrypted or otherwise incompatible with direct file download. For those sources, the download button is hidden or disabled on the detail page.
+</Note>
+
+## Download queue
+
+Active and pending downloads appear in the download queue. You can reach it from the **Downloads** tab in the bottom navigation bar by tapping **Active downloads**, or it is shown automatically when a download is in progress.
+
+From the queue you can:
+
+- **Pause** a download — tap the pause button next to an active download
+- **Resume** a paused download — tap the resume button; CloudStream restarts the download from where it left off if the server supports range requests, otherwise it restarts from the beginning
+- **Cancel** a download — removes it from the queue and deletes any partial file
+
+Multiple downloads can run in parallel. The queue is preserved across app restarts; paused downloads remain paused until you resume them manually.
+
+## Accessing downloaded content
+
+All completed downloads appear in the **Downloads** tab. Content is grouped by show title, with individual episodes listed underneath each title.
+
+From the Downloads tab you can:
+
+- **Play** a downloaded file — tap the title or episode to open it in the player
+- **Delete** a file — long-press or tap the delete icon to remove it from storage
+- **View file size** — each entry shows the size of the downloaded file
+
+## Storage location
+
+By default, CloudStream saves downloads to its internal app storage. On Android 10 and below, you may be able to redirect downloads to external storage (SD card) if one is available. The **Downloads** tab shows a storage usage bar at the top so you can monitor how much space your downloads are consuming.
+
+<AccordionGroup>
+  <Accordion title="Where are the files stored?">
+    Downloads are saved inside CloudStream's app-private storage, under a directory named after the show. Because the files are in app-private storage, they are not directly accessible from a file manager on most devices without root access. Deleting CloudStream from your device will also delete all downloaded files.
+  </Accordion>
+  <Accordion title="Why is the download button missing?">
+    The extension for this source has disabled download support (`hasDownloadSupport = false`). This usually means the stream links are encrypted or time-limited and cannot be saved as plain video files. Try a different extension for the same content, or watch the episode online.
+  </Accordion>
+  <Accordion title="A download failed — what should I do?">
+    Download failures are most often caused by the stream link expiring before the download completes, or by a network interruption. Delete the failed entry, return to the detail page, and try starting the download again. If the same episode consistently fails, the extension's links may not be compatible with direct downloads.
+  </Accordion>
+</AccordionGroup>

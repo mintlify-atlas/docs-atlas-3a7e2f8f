@@ -1,0 +1,266 @@
+---
+title: "Your first extension"
+description: "Build a complete, minimal CloudStream extension from scratch, with a working provider that supports homepage, search, detail pages, and video playback."
+---
+
+This guide walks you through building a complete minimal extension. By the end you will have a working plugin that displays a homepage, handles search queries, parses detail pages, and resolves video links for playback.
+
+<Note>
+  Make sure you have completed [development setup](/devs/setup) before starting this guide. You need a configured Gradle project with the CloudStream dependency added.
+</Note>
+
+## What you will build
+
+The extension consists of two Kotlin files:
+
+- `MyPlugin.kt` — the entry point, annotated with `@CloudstreamPlugin`
+- `MyProvider.kt` — the streaming provider, extending `MainAPI`
+
+<Steps>
+  <Step title="Create the plugin entry point">
+    Create `MyPlugin.kt` in your source directory. This class is the first thing CloudStream instantiates when it loads your `.cs3` file. Its only job is to register your providers.
+
+    ```kotlin MyPlugin.kt
+    import android.content.Context
+    import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
+    import com.lagradost.cloudstream3.plugins.Plugin
+
+    @CloudstreamPlugin
+    class MyPlugin : Plugin() {
+        override fun load(context: Context) {
+            registerMainAPI(MyProvider())
+        }
+    }
+    ```
+
+    `registerMainAPI()` is defined on `BasePlugin` and adds your provider to `APIHolder.allProviders` — the global list CloudStream searches across all loaded extensions. You can register multiple providers from a single plugin if your extension covers more than one site.
+
+    The `context` parameter is a standard Android `Context`. Use it if you need to read preferences, access files, or work with Android resources. If your plugin does not need Android-specific APIs, you can also override the no-arg `load()` from `BasePlugin` instead.
+  </Step>
+
+  <Step title="Create the provider class">
+    Create `MyProvider.kt`. This class extends `MainAPI` and declares the metadata CloudStream uses to display and route your provider.
+
+    ```kotlin MyProvider.kt (class declaration)
+    import com.lagradost.cloudstream3.*
+    import com.lagradost.cloudstream3.utils.ExtractorLink
+    import com.lagradost.cloudstream3.utils.loadExtractor
+
+    class MyProvider : MainAPI() {
+        override var name = "My Provider"
+        override var mainUrl = "https://example.com"
+        override var lang = "en"
+        override val hasMainPage = true
+        override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+    }
+    ```
+
+    Key properties:
+
+    - `name` — shown in the app UI and used as a key to look up your provider internally.
+    - `mainUrl` — the base URL of the site. The `fixUrl()` helper (see below) uses this to resolve relative links.
+    - `lang` — an IETF BCP 47 language tag (e.g. `"en"`, `"zh-TW"`, `"pt-BR"`).
+    - `hasMainPage` — set to `true` to tell CloudStream that your provider implements `getMainPage()`. If `false`, the app will not call it.
+    - `supportedTypes` — the `TvType` values your provider returns. Used for filtering in the UI.
+  </Step>
+
+  <Step title="Implement getMainPage()">
+    `getMainPage()` is called when the user opens the CloudStream home screen. It returns a `HomePageResponse` containing one or more named lists of search results.
+
+    ```kotlin MyProvider.kt — getMainPage
+    override suspend fun getMainPage(
+        page: Int,
+        request: MainPageRequest
+    ): HomePageResponse {
+        val doc = app.get(mainUrl).document
+        val items = doc.select(".movie-item").mapNotNull { el ->
+            val title = el.selectFirst("h2")?.text() ?: return@mapNotNull null
+            val href = el.selectFirst("a")?.attr("href") ?: return@mapNotNull null
+            val poster = el.selectFirst("img")?.attr("src")
+            newMovieSearchResponse(title, fixUrl(href), TvType.Movie) {
+                this.posterUrl = poster
+            }
+        }
+        return newHomePageResponse("Featured", items)
+    }
+    ```
+
+    **`app.get(url)`** — `app` is a pre-configured `NiceHttp` HTTP client available on every `MainAPI` instance. It handles cookies, redirects, and a sensible default `User-Agent`. Calling `.document` parses the response body as an HTML document using Jsoup, giving you a full selector API.
+
+    **`fixUrl(href)`** — a `MainAPI` extension function that resolves a URL against `mainUrl`. If `href` is already absolute it is returned as-is; if it is a root-relative path like `/movie/123` it is prefixed with `mainUrl`. Always use `fixUrl()` on links you scrape to avoid broken URLs from relative paths.
+
+    **`newMovieSearchResponse()`** — a builder function that constructs a `MovieSearchResponse`. The trailing lambda lets you set optional fields like `posterUrl`, `year`, and `quality` without needing to call a constructor with many positional parameters. Equivalent builders exist for series, anime, and live streams: `newTvSeriesSearchResponse()`, `newAnimeSearchResponse()`, `newLiveSearchResponse()`.
+
+    **`newHomePageResponse(name, items)`** — wraps your list in a `HomePageList` and returns a `HomePageResponse`. The `page` and `request` parameters support pagination and multiple homepage sections — see the `MainAPI` reference for advanced usage.
+  </Step>
+
+  <Step title="Implement search()">
+    `search()` is called when the user types a query. Return a list of `SearchResponse` objects.
+
+    ```kotlin MyProvider.kt — search
+    override suspend fun search(query: String): List<SearchResponse> {
+        val doc = app.get("$mainUrl/search?q=$query").document
+        return doc.select(".result-item").mapNotNull { el ->
+            val title = el.selectFirst("h2")?.text() ?: return@mapNotNull null
+            val href = el.selectFirst("a")?.attr("href") ?: return@mapNotNull null
+            newMovieSearchResponse(title, fixUrl(href), TvType.Movie)
+        }
+    }
+    ```
+
+    The `href` value stored in each `SearchResponse` is the URL that will be passed to `load()` when the user taps on a result. Make sure it points to the content's detail page, not a direct video link.
+
+    <Tip>
+      If the site uses URL-encoded queries, use `URLEncoder.encode(query, "UTF-8")` before interpolating. Some sites accept the query as a `POST` body — use `app.post(url, data = mapOf("q" to query))` in that case.
+    </Tip>
+  </Step>
+
+  <Step title="Implement load()">
+    `load()` receives the URL from a `SearchResponse` and must return a `LoadResponse` — a data class containing the full metadata for a piece of content (title, description, poster, episode list, etc.).
+
+    ```kotlin MyProvider.kt — load
+    override suspend fun load(url: String): LoadResponse {
+        val doc = app.get(url).document
+        val title = doc.selectFirst("h1")!!.text()
+        val description = doc.selectFirst(".description")?.text()
+        val poster = doc.selectFirst(".poster img")?.attr("src")
+
+        return newMovieLoadResponse(title, url, TvType.Movie, url) {
+            this.plot = description
+            this.posterUrl = poster
+        }
+    }
+    ```
+
+    The fourth argument to `newMovieLoadResponse()` is `dataUrl` — the string that will be passed to `loadLinks()` later. For movies this is typically the same page URL. For TV series you would use `newTvSeriesLoadResponse()` and provide a list of `Episode` objects, each carrying its own `data` string.
+
+    For TV series the pattern looks like:
+
+    ```kotlin load() for a TV series
+    val episodes = doc.select(".episode-item").mapNotNull { el ->
+        val epTitle = el.selectFirst("span")?.text() ?: return@mapNotNull null
+        val epHref = el.selectFirst("a")?.attr("href") ?: return@mapNotNull null
+        newEpisode(epHref) {
+            name = epTitle
+        }
+    }
+    return newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodes) {
+        this.plot = description
+        this.posterUrl = poster
+    }
+    ```
+  </Step>
+
+  <Step title="Implement loadLinks()">
+    `loadLinks()` is the most important method in a provider. It receives the `data` string from a `LoadResponse` or `Episode` and must invoke the `callback` with each playable `ExtractorLink` it finds. It also receives a `subtitleCallback` for subtitle tracks.
+
+    ```kotlin MyProvider.kt — loadLinks
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val doc = app.get(data).document
+        val iframeUrl = doc.selectFirst("iframe")?.attr("src") ?: return false
+        loadExtractor(iframeUrl, data, subtitleCallback, callback)
+        return true
+    }
+    ```
+
+    **`loadExtractor(url, referer, subtitleCallback, callback)`** — this is a top-level helper function that accepts an embed URL, finds the registered `ExtractorApi` whose `mainUrl` matches it, and calls its `getUrl()` method. The extracted `ExtractorLink` objects are passed directly to `callback`. This means you do not need to write extractor logic yourself for any host that CloudStream already supports.
+
+    Return `true` if you successfully started the extraction process, `false` if you could not find a video source (e.g. the iframe URL was missing). CloudStream uses the return value to decide whether to show a "no sources found" error.
+
+    <Note>
+      If a site hosts video directly (no embed), call `callback` yourself with a manually constructed `ExtractorLink` instead of using `loadExtractor()`. See the `ExtractorApi` reference for the full constructor signature.
+    </Note>
+  </Step>
+
+  <Step title="Build and test">
+    Build the `.cs3` file:
+
+    ```bash
+    ./gradlew assembleRelease
+    ```
+
+    To test on a device or emulator:
+
+    1. Transfer the `.cs3` file to the device.
+    2. Open CloudStream and go to **Settings → Extensions**.
+    3. Tap the folder icon to install a local extension, then select your `.cs3` file.
+    4. Your provider will appear in the extension list. Enable it.
+    5. Return to the home screen — your provider's content should appear in the **Featured** row.
+
+    <Tip>
+      Use the built-in provider testing tool in **Settings → Extensions → [your extension]** to call `search()`, `load()`, and `loadLinks()` individually and inspect the output without navigating through the full UI.
+    </Tip>
+  </Step>
+</Steps>
+
+## Complete provider listing
+
+Here is the full `MyProvider.kt` with all methods together:
+
+```kotlin MyProvider.kt (complete)
+import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.SubtitleFile
+import com.lagradost.cloudstream3.utils.loadExtractor
+
+class MyProvider : MainAPI() {
+    override var name = "My Provider"
+    override var mainUrl = "https://example.com"
+    override var lang = "en"
+    override val hasMainPage = true
+    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+
+    override suspend fun getMainPage(
+        page: Int,
+        request: MainPageRequest
+    ): HomePageResponse {
+        val doc = app.get(mainUrl).document
+        val items = doc.select(".movie-item").mapNotNull { el ->
+            val title = el.selectFirst("h2")?.text() ?: return@mapNotNull null
+            val href = el.selectFirst("a")?.attr("href") ?: return@mapNotNull null
+            val poster = el.selectFirst("img")?.attr("src")
+            newMovieSearchResponse(title, fixUrl(href), TvType.Movie) {
+                this.posterUrl = poster
+            }
+        }
+        return newHomePageResponse("Featured", items)
+    }
+
+    override suspend fun search(query: String): List<SearchResponse> {
+        val doc = app.get("$mainUrl/search?q=$query").document
+        return doc.select(".result-item").mapNotNull { el ->
+            val title = el.selectFirst("h2")?.text() ?: return@mapNotNull null
+            val href = el.selectFirst("a")?.attr("href") ?: return@mapNotNull null
+            newMovieSearchResponse(title, fixUrl(href), TvType.Movie)
+        }
+    }
+
+    override suspend fun load(url: String): LoadResponse {
+        val doc = app.get(url).document
+        val title = doc.selectFirst("h1")!!.text()
+        val description = doc.selectFirst(".description")?.text()
+        val poster = doc.selectFirst(".poster img")?.attr("src")
+        return newMovieLoadResponse(title, url, TvType.Movie, url) {
+            this.plot = description
+            this.posterUrl = poster
+        }
+    }
+
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val doc = app.get(data).document
+        val iframeUrl = doc.selectFirst("iframe")?.attr("src") ?: return false
+        loadExtractor(iframeUrl, data, subtitleCallback, callback)
+        return true
+    }
+}
+```

@@ -1,0 +1,110 @@
+{
+  "projectType": "general",
+  "projectName": "CloudStream",
+  "projectDescription": "An extension-based Android media center for streaming and downloading movies, TV shows, anime, and more, with no ads and full user control via a plugin system.",
+  "theme": "almond",
+  "primaryColor": "#1565C0",
+  "lightColor": "#42A5F5",
+  "darkColor": "#0D47A1",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "User Guide",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/extensions",
+              "features/player",
+              "features/downloads",
+              "features/tracking"
+            ]
+          },
+          {
+            "group": "Devices & Setup",
+            "pages": [
+              "devices/android",
+              "devices/android-tv",
+              "devices/windows",
+              "devices/linux"
+            ]
+          },
+          {
+            "group": "Help",
+            "pages": [
+              "troubleshooting",
+              "faq"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Extension Development",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "devs/introduction",
+              "devs/setup",
+              "devs/first-extension"
+            ]
+          },
+          {
+            "group": "Core API",
+            "pages": [
+              "devs/mainapi",
+              "devs/load-response",
+              "devs/search",
+              "devs/extractors"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "devs/sync-providers",
+              "devs/video-actions",
+              "devs/publishing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Extension/plugin system for adding streaming sources via .cs3 files",
+    "Built-in media player with subtitle and audio track support",
+    "Download manager for offline playback",
+    "Watch tracking integration with AniList, MyAnimeList, Kitsu, Simkl, and Trakt",
+    "Chromecast support",
+    "No ads and no analytics",
+    "Phone and Android TV support",
+    "Cloudflare and DDoS-Guard bypass for extension authors",
+    "Repository system for discovering and updating extensions",
+    "Multiple subtitle providers (OpenSubtitles, Addic7ed, SubSource, Subdl)"
+  ],
+  "publicApiSurface": [
+    "MainAPI — abstract base class for all streaming provider extensions",
+    "MainAPI.getMainPage(page, request) — fetch homepage categories",
+    "MainAPI.search(query) — search for content",
+    "MainAPI.load(url) — load a content detail/info page",
+    "MainAPI.loadLinks(data, isCasting, subtitleCallback, callback) — resolve playback links",
+    "ExtractorApi — abstract base class for video link extractors",
+    "BasePlugin / Plugin — base classes for CloudStream extension plugins",
+    "BasePlugin.registerMainAPI(element) — register a MainAPI provider from a plugin",
+    "BasePlugin.registerExtractorAPI(element) — register an ExtractorApi from a plugin",
+    "Plugin.registerVideoClickAction(element) — register a custom video action",
+    "@CloudstreamPlugin annotation — marks the plugin entry-point class",
+    "TvType enum — content type classification (Movie, TvSeries, Anime, Live, etc.)",
+    "SyncIdName enum — supported tracking/sync service identifiers",
+    "APIHolder.allProviders — global list of registered MainAPI providers",
+    "newMovieLoadResponse / newTvSeriesLoadResponse / newAnimeLoadResponse — response builder helpers"
+  ]
+}

@@ -1,80 +1,75 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick start"
+description: "Go from a fresh CloudStream install to watching content in under 5 minutes."
 ---
 
-## Get started in three steps
+This guide walks you through the steps to get content playing as quickly as possible. You will add a repository, install an extension from it, and start browsing.
 
-Get your documentation site running locally and make your first customization.
+If you have not installed CloudStream yet, start with the [Installation](/installation) guide first.
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Open CloudStream">
+    Launch CloudStream from your app drawer. On the first run you may be prompted to select a profile — you can skip this or set one up later.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    The home screen will be empty until you install at least one extension.
+  </Step>
 
-### Step 2: Deploy your changes
+  <Step title="Go to Extensions">
+    Tap the **Extensions** icon in the bottom navigation bar, or open the side menu and select **Extensions**.
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    This is where you manage all installed extensions and the repositories they come from.
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Add a repository">
+    A repository is a hosted list of extensions. Extensions are community-maintained, so you need to add at least one repository to browse available extensions.
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    1. Inside **Extensions**, tap **Repositories** (or the repository icon at the top).
+    2. Tap **Add repository** (the `+` icon).
+    3. Enter a repository URL and confirm.
 
-### Step 3: Go live
+    One commonly used community repository is available at `https://recloudstream.github.io/cloudstream-extensions-hexated/`. You can find additional repositories shared by the community.
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    <Note>
+      The extension ecosystem is entirely community-maintained. CloudStream does not officially endorse any specific extension or repository. Only add repositories from sources you trust, and make sure any content you access complies with the laws in your country.
+    </Note>
+  </Step>
 
-## Next steps
+  <Step title="Install an extension">
+    After adding a repository, its extensions appear in the **Extensions** list.
 
-Now that you have your docs running, explore these key features:
+    1. Browse or search for an extension you want to use.
+    2. Tap the extension to view its details, then tap **Install**.
+    3. Wait for the download to complete. The extension is active immediately — no restart needed.
 
-<CardGroup cols={2}>
+    You can install as many extensions as you like. Each one adds a new content source to your home screen and search.
+  </Step>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+  <Step title="Browse content from the home screen">
+    Return to the **Home** screen. You will now see rows of content populated by your installed extensions — featured titles, recently updated episodes, and more.
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+    Scroll through the categories or tap an extension's section heading to browse its full catalog.
+  </Step>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+  <Step title="Select a title, choose quality, and play">
+    Tap any title to open its detail page. From there:
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+    1. Select the season and episode (for series), or go directly to the links (for movies).
+    2. Tap a stream link. CloudStream fetches available quality options.
+    3. Choose your preferred quality and tap **Play**.
 
-</CardGroup>
+    The built-in player launches and playback begins.
+  </Step>
+</Steps>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+<Tip>
+  Use the **Search** tab to query all of your installed extensions at once. Results from every source appear together, so you can find content without knowing which extension carries it.
+</Tip>
+
+## What to explore next
+
+Once you are set up, you can:
+
+- Connect a tracking service like **AniList** or **MyAnimeList** under **Settings** → **Account** to sync your watch history automatically.
+- Download episodes for offline viewing using the download button on any stream link.
+- Cast to a TV using the **Chromecast** button in the player.
+- Add more extensions from additional repositories to expand your content library.
